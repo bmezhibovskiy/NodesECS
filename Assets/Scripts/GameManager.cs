@@ -17,8 +17,25 @@ using Unity.Assertions;
 using static UnityEditor.PlayerSettings;
 
 
+public static class Globals
+{
+    public readonly static SharedStatic<InputState> sharedInputState = SharedStatic<InputState>.GetOrCreate<InputStateKey>();
+    private class InputStateKey { }
 
+    static Globals()
+    {
+        sharedInputState.Data.Initialize();
+    }
+}
 
+public struct InputState
+{
+    public bool isSpaceDown;
+    public void Initialize()
+    {
+        isSpaceDown = false;
+    }
+}
 
 public class GameManager : MonoBehaviour
 {
@@ -45,13 +62,22 @@ public class GameManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if(Input.GetKey(KeyCode.Space))
+        {
+            Globals.sharedInputState.Data.isSpaceDown = true;
+        }
+        else
+        {
+            Globals.sharedInputState.Data.isSpaceDown = false;
+        }
+
         UpdateFPSCounter();
     }
 
     float nodeDistance = 1.2f;
     float3 nodeOffset = new float3(0, 1, 0) * 1.2f;
-    int numSideNodes = 101;
-    int numNodes = 101 * 101;
+    int numSideNodes = 45;
+    int numNodes = 45 * 45;
     bool is3d = false;
     private void GenerateNodes()
     {

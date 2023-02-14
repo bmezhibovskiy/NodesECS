@@ -78,7 +78,9 @@ public partial class NodeSystem : SystemBase
                     }
                     else
                     {
-                        gridNode.velocity += NodeVelocityAt(translation.Value, soTranslation.Value);
+                        float multiplier = 1f;
+                        if(Globals.sharedInputState.Data.isSpaceDown) { multiplier = -1f; }
+                        gridNode.velocity += multiplier * NodeVelocityAt(translation.Value, soTranslation.Value);
                     }
                 }
             }
