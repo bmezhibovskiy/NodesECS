@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -23,6 +24,7 @@ public partial class NodeSystem : SystemBase
     private JobHandle disposeSectorObjectsArray;
     private JobHandle renderNodes;
     private JobHandle updateGridNodePositions;
+    private JobHandle updateSpatialHasher;
     private JobHandle removeDeadNodes;
 
     private static float3 NodeVelocityAt(float3 nodePosition, float3 sectorObjectPosition)
@@ -108,25 +110,34 @@ public partial class NodeSystem : SystemBase
         updateGridNodePositions = Entities
             .WithAll<Translation, GridNode>()
             .ForEach(
-            (ref Translation translation, in Entity e, in GridNode gridNode) =>
+            (ref Translation translation, in GridNode gridNode) =>
             {
                 translation.Value += gridNode.velocity;
             }
         ).ScheduleParallel(renderNodes);
         Dependency = updateGridNodePositions;
 
+        updateSpatialHasher = Entities.WithAll<SpatiallyHashed, Translation>().ForEach(
+            (ref SpatiallyHashed hashed, in Entity e, in Translation translation) =>
+            {
+                Globals.sharedSpatialHasher.Data.Update(ref hashed, e, translation.Value);
+            }
+            ).ScheduleParallel(updateGridNodePositions);
+        Dependency = updateSpatialHasher;
+
         EntityCommandBuffer.ParallelWriter ecb = ecbSystem.CreateCommandBuffer().AsParallelWriter();
         removeDeadNodes = Entities
-            .WithAll<GridNode>()
+            .WithAll<GridNode, Translation, SpatiallyHashed>()
             .ForEach(
-            (in Entity e, in int entityInQueryIndex, in GridNode gridNode) =>
+            (ref SpatiallyHashed hashed, in Entity e, in int entityInQueryIndex, in GridNode gridNode, in Translation translation) =>
             {
                 if (gridNode.isDead)
                 {
+                    Globals.sharedSpatialHasher.Data.Remove(hashed, e);
                     ecb.DestroyEntity(entityInQueryIndex, e);
                 }
             }
-        ).ScheduleParallel(updateGridNodePositions);
+        ).ScheduleParallel(updateSpatialHasher);
         ecbSystem.AddJobHandleForProducer(removeDeadNodes);
         Dependency = removeDeadNodes;
     }

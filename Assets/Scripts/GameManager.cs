@@ -1,26 +1,117 @@
 using UnityEngine;
 using Unity.Entities;
 using Unity.Mathematics;
-using Unity.Jobs;
 using Unity.Transforms;
 using Unity.Burst;
-using Unity.Rendering.HybridV2;
-using static Unity.Properties.PropertyPath;
-using Unity.VisualScripting;
-using static UnityEngine.EventSystems.EventTrigger;
 using System.Collections.Generic;
 using Unity.Collections;
-using static UnityEditor.UIElements.CurveField;
-using System.Linq;
-using Unity.Entities.UniversalDelegates;
-using Unity.Assertions;
-using static UnityEditor.PlayerSettings;
+
+
+public struct SpatiallyHashed: IComponentData
+{
+    public int bucketIndex;
+    public int entityIndex;
+}
+
+public struct SpatialHasher
+{
+    public readonly static int maxEntitiesInBucket = 64;
+    public NativeSlice<Entity> entitiesInBuckets; //Flattened 2d array
+    public NativeSlice<int> bucketCounts;
+
+    public float inverseBucketSize;
+    public int numSideBuckets;
+    public float offset;
+    public int numBuckets;
+
+    public void Initialize(float bucketSize, float totalSideLength)
+    {
+        inverseBucketSize = 1 / bucketSize;
+        numSideBuckets = (int)(totalSideLength * inverseBucketSize);
+        offset = totalSideLength * 0.5f;
+
+        numBuckets = numSideBuckets * numSideBuckets;
+        NativeArray<Entity> entitiesArray = new NativeArray<Entity>(numBuckets * maxEntitiesInBucket, Allocator.Persistent);//Should this be Temp?
+        NativeArray<int> bucketCountsArray = new NativeArray<int>(numBuckets, Allocator.Persistent);
+        for(int i = 0; i < numBuckets; ++i)
+        {
+            bucketCountsArray[i] = 0;
+        }
+        entitiesInBuckets = new NativeSlice<Entity>(entitiesArray);
+        bucketCounts = new NativeSlice<int>(bucketCountsArray);
+    }
+
+    public void Add(ref SpatiallyHashed hashed, Entity e, float3 pos)
+    {
+        int hash = Hash(pos);
+        int numEntities = bucketCounts[hash];
+        ++bucketCounts[hash];
+
+        int newEntityIndex = numEntities;
+
+        int flattenedIndex = Utils.to1D(hash, newEntityIndex, maxEntitiesInBucket);
+
+        if(flattenedIndex < numBuckets * maxEntitiesInBucket)
+        {
+            entitiesInBuckets[flattenedIndex] = e;
+            hashed.bucketIndex = hash;
+            hashed.entityIndex = newEntityIndex;
+        }
+    }
+
+    public void Update(ref SpatiallyHashed hashed, Entity e, float3 newPos)
+    {
+        int oldHash = hashed.bucketIndex;
+        int newHash = Hash(newPos);
+        if(oldHash != newHash)
+        {
+            Remove(hashed, e);
+            Add(ref hashed, e, newPos);
+        }
+    }
+
+    public void Remove(SpatiallyHashed hashed, Entity e)
+    {
+        int hash = hashed.bucketIndex;
+        int flattenedIndex = Utils.to1D(hash, hashed.entityIndex, maxEntitiesInBucket);
+        int lastEntityIndex = bucketCounts[hash] - 1;
+        int flattenedLastIndex = Utils.to1D(hash, lastEntityIndex, maxEntitiesInBucket);
+        //Copy over the last entity to this one's position, and decrease count
+        entitiesInBuckets[flattenedIndex] = entitiesInBuckets[flattenedLastIndex];
+        --bucketCounts[hash];
+    }
+
+    public NativeArray<Entity> ClosestNodes(float3 pos)
+    {
+        int hash = Hash(pos);
+        int numEntities = bucketCounts[hash];
+        NativeArray<Entity> closestEntities = new NativeArray<Entity>(numEntities, Allocator.Temp);
+        for(int i = 0; i < numEntities; ++i)
+        {
+            closestEntities[i] = entitiesInBuckets[Utils.to1D(hash, i, maxEntitiesInBucket)];
+        }
+        return closestEntities;
+    }
+
+    private int Hash(float3 point)
+    {
+        int x = (int)((point.x + offset) * inverseBucketSize);
+        int y = (int)((point.y + offset) * inverseBucketSize);
+
+        int hash = Utils.to1D(x, y, numSideBuckets);
+        hash = math.clamp(hash, 0, numBuckets);
+
+        return hash;
+    }
+}
 
 
 public static class Globals
 {
     public readonly static SharedStatic<InputState> sharedInputState = SharedStatic<InputState>.GetOrCreate<InputStateKey>();
+    public readonly static SharedStatic<SpatialHasher> sharedSpatialHasher = SharedStatic<SpatialHasher>.GetOrCreate<SpatialHasherKey>();
     private class InputStateKey { }
+    private class SpatialHasherKey { }
 
     static Globals()
     {
@@ -48,9 +139,16 @@ public class GameManager : MonoBehaviour
     [SerializeField]
     Material nodeMaterial;
 
+    float nodeDistance = 1.2f;
+    float3 nodeOffset = new float3(0, 1, 0) * 1.2f;
+    int numSideNodes = 45;
+    int numNodes = 45 * 45;
+    bool is3d = false;
+
     // Start is called before the first frame update
     void Start()
     {
+        Globals.sharedSpatialHasher.Data.Initialize(3.0f, nodeDistance * numSideNodes * 1.25f);
         mainCamera.orthographic = true;
         GenerateNodes();
         AddSectorObject(new float3(-2, 0, 0));
@@ -74,11 +172,6 @@ public class GameManager : MonoBehaviour
         UpdateFPSCounter();
     }
 
-    float nodeDistance = 1.2f;
-    float3 nodeOffset = new float3(0, 1, 0) * 1.2f;
-    int numSideNodes = 45;
-    int numNodes = 45 * 45;
-    bool is3d = false;
     private void GenerateNodes()
     {
 
@@ -106,6 +199,9 @@ public class GameManager : MonoBehaviour
         Entity e = em.CreateEntity(ea);
         em.AddComponentData(e, new Translation { Value = pos });
         em.AddComponentData(e, new GridNode { velocity = float3.zero, isDead = false });
+        SpatiallyHashed hashed = new SpatiallyHashed { };
+        Globals.sharedSpatialHasher.Data.Add(ref hashed, e, pos);
+        em.AddComponentData(e, hashed);
     }
 
     private void AddSectorObject(float3 pos)

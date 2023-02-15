@@ -66,22 +66,32 @@ public partial class ShipSystem : SystemBase
     {
         ComponentDataFromEntity<Translation> translationData = GetComponentDataFromEntity<Translation>();
 
-        NativeArray<Entity> nodes = GetEntityQuery(typeof(GridNode), typeof(Translation)).ToEntityArray(Allocator.TempJob);
+        //NativeArray<Entity> nodes = GetEntityQuery(typeof(GridNode), typeof(Translation)).ToEntityArray(Allocator.TempJob);
 
         updateShips = Entities
             .WithAll<Ship, Translation>()
-            .WithReadOnly(nodes)
+            //.WithReadOnly(nodes)
             .WithReadOnly(translationData)
             .ForEach(
             (ref Ship s, in Translation t) =>
             {
+                float3 shipPos = t.Value;
+                s.closestNodes = new ClosestNodes { closestNode1 = Entity.Null, closestNode2 = Entity.Null, closestNode3 = Entity.Null };
+
+
+                NativeArray<Entity> closestArray = Globals.sharedSpatialHasher.Data.ClosestNodes(shipPos);
+                for (int i = 0; i < closestArray.Length && i < ClosestNodes.numClosestNodes; ++i)
+                {
+                    s.closestNodes.Set(closestArray[i], i);
+                }
+
+                /*
                 //Instead of just sorting the nodes array,
                 //It should be faster to just find the closest K nodes (currently 3)
                 //So, this algorithm has K*N iterations, where N is the total number of nodes
                 //Since K is very small, this has a O(N).
                 //Also, it doesn't require copying an entire array to sort it.
-                float3 shipPos = t.Value;
-                s.closestNodes = new ClosestNodes { closestNode1 = Entity.Null, closestNode2 = Entity.Null, closestNode3 = Entity.Null };
+                
                 for (int i = 0; i < nodes.Length; ++i)
                 {
                     float3 nodePos = translationData[nodes[i]].Value;
@@ -105,19 +115,23 @@ public partial class ShipSystem : SystemBase
                         }
                     }
                 }
-
+                /**/
                 //Once we've updated the closest nodes, we can draw lines for debug visualization
                 for (int i = 0; i < ClosestNodes.numClosestNodes; ++i)
                 {
-                    float3 nodePos = translationData[s.closestNodes.Get(i)].Value;
-                    Debug.DrawLine(shipPos, nodePos);
+                    Entity closest = s.closestNodes.Get(i);
+                    if (translationData.HasComponent(closest))
+                    {
+                        float3 nodePos = translationData[closest].Value;
+                        Debug.DrawLine(shipPos, nodePos);
+                    }
                 }
             }
             ).ScheduleParallel(Dependency);
         Dependency = updateShips;
 
-        disposeNodesArray = nodes.Dispose(updateShips);
-        Dependency = disposeNodesArray;
+        //disposeNodesArray = nodes.Dispose(updateShips);
+        //Dependency = disposeNodesArray;
     }
 }
 public struct EntityComparer : IComparer<Entity>
