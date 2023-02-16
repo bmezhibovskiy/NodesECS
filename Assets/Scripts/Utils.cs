@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.Mathematics;
 
 public class Utils
 {
@@ -9,13 +10,13 @@ public class Utils
         return (z * numSideNodes * numSideNodes) + (y * numSideNodes) + x;
     }
 
-    public static int[] to3D(int idx, int numSideNodes)
+    public static int3 to3D(int idx, int numSideNodes)
     {
         int z = idx / (numSideNodes * numSideNodes);
         idx -= (z * numSideNodes * numSideNodes);
         int y = idx / numSideNodes;
         int x = idx % numSideNodes;
-        return new int[] { x, y, z };
+        return new int3 { x = x, y = y, z = z };
     }
 
     public static int to1D(int x, int y, int numSideNodes)
@@ -23,11 +24,11 @@ public class Utils
         return (y * numSideNodes) + x;
     }
 
-    public static int[] to2D(int idx, int numSideNodes)
+    public static int2 to2D(int idx, int numSideNodes)
     {
         int y = idx / numSideNodes;
         int x = idx % numSideNodes;
-        return new int[] { x, y };
+        return new int2 { x = x, y = y };
     }
     public static Vector3? LineSegmentCircleIntersection(Vector3 center, float r, Vector3 start, Vector3 end)
     {

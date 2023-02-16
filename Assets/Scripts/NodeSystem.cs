@@ -129,7 +129,7 @@ public partial class NodeSystem : SystemBase
         removeDeadNodes = Entities
             .WithAll<GridNode, Translation, SpatiallyHashed>()
             .ForEach(
-            (ref SpatiallyHashed hashed, in Entity e, in int entityInQueryIndex, in GridNode gridNode, in Translation translation) =>
+            (in SpatiallyHashed hashed, in Entity e, in int entityInQueryIndex, in GridNode gridNode, in Translation translation) =>
             {
                 if (gridNode.isDead)
                 {
