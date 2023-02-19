@@ -9,9 +9,7 @@ using Unity.Collections;
 public static class Globals
 {
     public readonly static SharedStatic<InputState> sharedInputState = SharedStatic<InputState>.GetOrCreate<InputStateKey>();
-    //public readonly static SharedStatic<SpatialHasher> sharedSpatialHasher = SharedStatic<SpatialHasher>.GetOrCreate<SpatialHasherKey>();
     private class InputStateKey { }
-    private class SpatialHasherKey { }
 
     static Globals()
     {
@@ -41,11 +39,6 @@ public class GameManager : MonoBehaviour
     [SerializeField]
     Material nodeMaterial;
 
-    NativeArray<Entity> entitiesArray;
-    NativeArray<int> bucketCountsArray;
-    NativeArray<int2> flattenedSearchCoords;
-    NativeArray<int> searchCoordLengths;
-
     float nodeDistance = 1.2f;
     float3 nodeOffset = new float3(0, 1, 0) * 1.2f;
     int numSideNodes = 99;
@@ -69,10 +62,7 @@ public class GameManager : MonoBehaviour
 
     private void OnDestroy()
     {
-        entitiesArray.Dispose();
-        bucketCountsArray.Dispose();
-        flattenedSearchCoords.Dispose();
-        searchCoordLengths.Dispose();
+        SpatialHasher.sharedInstance.Dispose();
     }
 
     // Update is called once per frame

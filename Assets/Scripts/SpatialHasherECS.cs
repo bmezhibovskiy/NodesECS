@@ -161,6 +161,14 @@ public struct SpatialHasher
         return closestObjects;
     }
 
+    public void Dispose()
+    {
+        entitiesInBuckets.Dispose();
+        bucketCounts.Dispose();
+        flattenedSearchCoords.Dispose();
+        searchCoordLengths.Dispose();
+    }
+
     private int Hash(float3 point)
     {
         int x = (int)((point.x + offset) * inverseBucketSize);
