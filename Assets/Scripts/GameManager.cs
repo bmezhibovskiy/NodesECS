@@ -9,7 +9,7 @@ using Unity.Collections;
 public static class Globals
 {
     public readonly static SharedStatic<InputState> sharedInputState = SharedStatic<InputState>.GetOrCreate<InputStateKey>();
-    public readonly static SharedStatic<SpatialHasher> sharedSpatialHasher = SharedStatic<SpatialHasher>.GetOrCreate<SpatialHasherKey>();
+    //public readonly static SharedStatic<SpatialHasher> sharedSpatialHasher = SharedStatic<SpatialHasher>.GetOrCreate<SpatialHasherKey>();
     private class InputStateKey { }
     private class SpatialHasherKey { }
 
@@ -57,34 +57,12 @@ public class GameManager : MonoBehaviour
     {
         float cellSize = 0.5f;
         float sideSize = nodeDistance * numSideNodes * 1.25f;
-        int numBuckets = SpatialHasher.NumBuckets(cellSize, sideSize);
+        SpatialHasher.sharedInstance.Initialize(cellSize, sideSize);
 
-        entitiesArray = new NativeArray<Entity>(numBuckets * SpatialHasher.maxEntitiesInBucket, Allocator.Persistent);//Should this be Temp?
-        bucketCountsArray = new NativeArray<int>(numBuckets, Allocator.Persistent);
-
-        int2[][] rawSearchCoords = SearchCoords.GenerateShells(numSideNodes);
-        int numShells = rawSearchCoords.Length;
-        int maxShellSize = rawSearchCoords[numShells - 1].Length; //Last shell is biggest
-
-        flattenedSearchCoords = new NativeArray<int2>(numShells * maxShellSize, Allocator.Persistent);
-        searchCoordLengths = new NativeArray<int>(numShells, Allocator.Persistent);
-
-        for(int i = 0; i < rawSearchCoords.Length; ++i)
-        {
-            int numCoordsInShell = rawSearchCoords[i].Length;
-            searchCoordLengths[i] = numCoordsInShell;
-            for(int j = 0; j < numCoordsInShell; ++j)
-            {
-                int flattenedIndex = Utils.to1D(j, i, maxShellSize);
-                flattenedSearchCoords[flattenedIndex] = rawSearchCoords[i][j];
-            }
-        }
-
-        Globals.sharedSpatialHasher.Data.Initialize(ref entitiesArray, ref bucketCountsArray, ref flattenedSearchCoords, ref searchCoordLengths, cellSize, sideSize);
         mainCamera.orthographic = true;
  
         GenerateNodes();
-        AddSectorObject(new float3(-20, 0, 0));
+        AddSectorObject(new float3(-10, 0, 0));
         AddShip(new float3(2, 2, 0));
         AddShip(new float3(-2, -2, 0));
     }
@@ -151,7 +129,7 @@ public class GameManager : MonoBehaviour
         em.AddComponentData(e, new Translation { Value = pos });
         em.AddComponentData(e, new GridNode { velocity = float3.zero, isDead = false });
         SpatiallyHashed hashed = new SpatiallyHashed { };
-        Globals.sharedSpatialHasher.Data.Add(ref hashed, e, pos);
+        SpatialHasher.sharedInstance.Add(ref hashed, e, pos);
         em.AddComponentData(e, hashed);
     }
 

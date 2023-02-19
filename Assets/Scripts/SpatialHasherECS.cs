@@ -4,7 +4,6 @@ using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
-using Newtonsoft.Json.Linq;
 
 public struct SpatiallyHashed : IComponentData
 {
@@ -13,13 +12,13 @@ public struct SpatiallyHashed : IComponentData
 
 public struct SpatialHasher
 {
+    public static SpatialHasher sharedInstance = new SpatialHasher();
     public readonly static int maxEntitiesInBucket = 64;
-    public NativeSlice<Entity> entitiesInBuckets; //Flattened 2d array
-    public NativeSlice<int> bucketCounts;
+    [NativeDisableParallelForRestriction] public NativeArray<Entity> entitiesInBuckets; //Flattened 2d array
+    [NativeDisableParallelForRestriction] public NativeArray<int> bucketCounts;
 
-
-    public NativeSlice<int2> flattenedSearchCoords;
-    public NativeSlice<int> searchCoordLengths;
+    public NativeArray<int2> flattenedSearchCoords;
+    public NativeArray<int> searchCoordLengths;
 
     public float inverseBucketSize;
     public int numSideBuckets;
@@ -32,27 +31,43 @@ public struct SpatialHasher
         return numSideBuckets * numSideBuckets;
     }
 
-    public void Initialize(ref NativeArray<Entity> entitiesArray, ref NativeArray<int> bucketCountsArray, ref NativeArray<int2> flattenedSearchCoordsArray, ref NativeArray<int> searchCoordLengthsArray, float bucketSize, float totalSideLength)
+    public void Initialize(float bucketSize, float totalSideLength)
     {
         inverseBucketSize = 1 / bucketSize;
         numSideBuckets = (int)(totalSideLength * inverseBucketSize);
         offset = totalSideLength * 0.5f;
         numBuckets = numSideBuckets * numSideBuckets;
 
+        entitiesInBuckets = new NativeArray<Entity>(numBuckets * SpatialHasher.maxEntitiesInBucket, Allocator.Persistent);
+        bucketCounts = new NativeArray<int>(numBuckets, Allocator.Persistent);
+
+        int2[][] rawSearchCoords = SearchCoords.GenerateShells(numSideBuckets);
+        int numShells = rawSearchCoords.Length;
+        int maxShellSize = rawSearchCoords[numShells - 1].Length; //Last shell is biggest
+
+        flattenedSearchCoords = new NativeArray<int2>(numShells * maxShellSize, Allocator.Persistent);
+        searchCoordLengths = new NativeArray<int>(numShells, Allocator.Persistent);
+
+        for (int i = 0; i < rawSearchCoords.Length; ++i)
+        {
+            int numCoordsInShell = rawSearchCoords[i].Length;
+            searchCoordLengths[i] = numCoordsInShell;
+            for (int j = 0; j < numCoordsInShell; ++j)
+            {
+                int flattenedIndex = Utils.to1D(j, i, maxShellSize);
+                flattenedSearchCoords[flattenedIndex] = rawSearchCoords[i][j];
+            }
+        }
+
         for (int i = 0; i < numBuckets; ++i)
         {
-            bucketCountsArray[i] = 0;
+            bucketCounts[i] = 0;
         }
 
         for (int i = 0; i < numBuckets * maxEntitiesInBucket; ++i)
         {
-            entitiesArray[i] = Entity.Null;
+            entitiesInBuckets[i] = Entity.Null;
         }
-
-        entitiesInBuckets = new NativeSlice<Entity>(entitiesArray);
-        bucketCounts = new NativeSlice<int>(bucketCountsArray);
-        flattenedSearchCoords = new NativeSlice<int2>(flattenedSearchCoordsArray);
-        searchCoordLengths = new NativeSlice<int>(searchCoordLengthsArray);
     }
 
     public void Add(ref SpatiallyHashed hashed, Entity e, float3 pos)

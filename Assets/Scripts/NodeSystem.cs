@@ -18,14 +18,33 @@ public struct SectorObject : IComponentData
     public float radius;
 }
 
-public partial class NodeSystem : SystemBase
+[BurstCompile]
+public partial struct UpdateNodeVelocitiesJob: IJobEntity
 {
-    private JobHandle updateNodeVelocities;
-    private JobHandle disposeSectorObjectsArray;
-    private JobHandle renderNodes;
-    private JobHandle updateGridNodePositions;
-    private JobHandle updateSpatialHasher;
-    private JobHandle removeDeadNodes;
+    [ReadOnly] public NativeArray<Entity> sectorObjects;
+    [ReadOnly] public ComponentDataFromEntity<Translation> translationData;
+    [ReadOnly] public ComponentDataFromEntity<SectorObject> sectorObjectData;
+    void Execute(ref GridNode gridNode, in Entity e)
+    {
+        Translation translation = translationData[e];
+        gridNode.velocity = float3.zero;
+        for (int i = 0; i < sectorObjects.Length; ++i)
+        {
+            Translation soTranslation = translationData[sectorObjects[i]];
+            SectorObject soComponent = sectorObjectData[sectorObjects[i]];
+            float distSq = math.distancesq(translation.Value, soTranslation.Value);
+            if (distSq < soComponent.radius * soComponent.radius)
+            {
+                gridNode.isDead = true;
+            }
+            else
+            {
+                float multiplier = 1f;
+                if (Globals.sharedInputState.Data.isSpaceDown) { multiplier = -1f; }
+                gridNode.velocity += multiplier * NodeVelocityAt(translation.Value, soTranslation.Value);
+            }
+        }
+    }
 
     private static float3 NodeVelocityAt(float3 nodePosition, float3 sectorObjectPosition)
     {
@@ -42,6 +61,64 @@ public partial class NodeSystem : SystemBase
         float denom = Mathf.Pow(math.distancesq(sectorObjectPosition, nodePosition), (order - 1f));
         return (pullStrength / denom) * dir + (perpendicularStrength / denom) * dir2;
     }
+}
+
+[BurstCompile]
+public partial struct RenderNodesJob: IJobEntity
+{
+    void Execute(in GridNode gridNode, in Translation translation)
+    {
+        float3 velVec = gridNode.velocity;
+        if (math.distancesq(velVec, float3.zero) < 0.00001f)
+        {
+            velVec = new float3(1, 0, 0) * 0.001f;
+        }
+        Debug.DrawRay(translation.Value, velVec * 20f);
+    }
+}
+
+[BurstCompile]
+public partial struct UpdateNodePositionsJob: IJobEntity
+{
+    void Execute(ref Translation translation, in GridNode gridNode)
+    {
+        translation.Value += gridNode.velocity;
+    }
+}
+
+[BurstCompile]
+public partial struct UpdateSpatialHasherJob : IJobEntity
+{
+    public SpatialHasher spatialHasher;
+    void Execute(ref SpatiallyHashed hashed, in Entity e, in Translation translation)
+    {
+        spatialHasher.Update(ref hashed, e, translation.Value);
+    }
+}
+
+[BurstCompile]
+public partial struct RemoveDeadNodesJob: IJobEntity
+{
+    public SpatialHasher spatialHasher;
+    public EntityCommandBuffer.ParallelWriter ecb;
+    void Execute(in SpatiallyHashed hashed, in Entity e, [EntityInQueryIndex] int entityInQueryIndex, in GridNode gridNode, in Translation translation)
+    {
+        if (gridNode.isDead)
+        {
+            spatialHasher.Remove(hashed, e);
+            ecb.DestroyEntity(entityInQueryIndex, e);
+        }
+    }
+}
+
+public partial class NodeSystem : SystemBase
+{
+    private JobHandle updateNodeVelocities;
+    private JobHandle disposeSectorObjectsArray;
+    private JobHandle renderNodes;
+    private JobHandle updateGridNodePositions;
+    private JobHandle updateSpatialHasher;
+    private JobHandle removeDeadNodes;
 
     private EndSimulationEntityCommandBufferSystem ecbSystem;
 
@@ -53,91 +130,27 @@ public partial class NodeSystem : SystemBase
     [BurstCompile]
     protected override void OnUpdate()
     {
-        //updateNodeVelocities.Complete();
-        //disposeSectorObjectsArray.Complete();
-        //renderNodes.Complete();
-        //updateGridNodePositions.Complete();
-        //removeDeadNodes.Complete();
+        ComponentDataFromEntity<Translation> translationData = GetComponentDataFromEntity<Translation>();
+        ComponentDataFromEntity<SectorObject> sectorObjectData = GetComponentDataFromEntity<SectorObject>();
 
         NativeArray<Entity> sectorObjects = GetEntityQuery(typeof(SectorObject), typeof(Translation)).ToEntityArray(Allocator.TempJob);
 
-        updateNodeVelocities = Entities
-            .WithAll<GridNode>()
-            .WithReadOnly(sectorObjects)
-            .ForEach(
-            (ref Entity e, ref GridNode gridNode) =>
-            {
-                Translation translation = GetComponent<Translation>(e);
-                gridNode.velocity = float3.zero;
-                for (int i = 0; i < sectorObjects.Length; ++i)
-                {
-                    Translation soTranslation = GetComponent<Translation>(sectorObjects[i]);
-                    SectorObject soComponent = GetComponent<SectorObject>(sectorObjects[i]);
-                    float distSq = math.distancesq(translation.Value, soTranslation.Value);
-                    if (distSq < soComponent.radius * soComponent.radius)
-                    {
-                        gridNode.isDead = true;
-                    }
-                    else
-                    {
-                        float multiplier = 1f;
-                        if(Globals.sharedInputState.Data.isSpaceDown) { multiplier = -1f; }
-                        gridNode.velocity += multiplier * NodeVelocityAt(translation.Value, soTranslation.Value);
-                    }
-                }
-            }
-        ).ScheduleParallel(Dependency);
+        updateNodeVelocities = new UpdateNodeVelocitiesJob { sectorObjects = sectorObjects, translationData = translationData, sectorObjectData = sectorObjectData }.ScheduleParallel(Dependency);
         Dependency = updateNodeVelocities;
 
         disposeSectorObjectsArray = sectorObjects.Dispose(updateNodeVelocities);
         Dependency = disposeSectorObjectsArray;
 
-        renderNodes = Entities
-            .WithAll<GridNode, Translation>()
-            .ForEach(
-            (in GridNode gridNode, in Translation translation) =>
-            {
-                float3 velVec = gridNode.velocity;
-                if (math.distancesq(velVec, float3.zero) < 0.00001f)
-                {
-                    velVec = new float3(1, 0, 0) * 0.001f;
-                }
-                Debug.DrawRay(translation.Value, velVec * 20f);
-            }
-        ).ScheduleParallel(disposeSectorObjectsArray);
+        renderNodes = new RenderNodesJob().ScheduleParallel(disposeSectorObjectsArray);
         Dependency = renderNodes;
 
-        updateGridNodePositions = Entities
-            .WithAll<Translation, GridNode>()
-            .ForEach(
-            (ref Translation translation, in GridNode gridNode) =>
-            {
-                translation.Value += gridNode.velocity;
-            }
-        ).ScheduleParallel(renderNodes);
+        updateGridNodePositions = new UpdateNodePositionsJob().ScheduleParallel(renderNodes);
         Dependency = updateGridNodePositions;
 
-        updateSpatialHasher = Entities.WithAll<SpatiallyHashed, Translation>().ForEach(
-            (ref SpatiallyHashed hashed, in Entity e, in Translation translation) =>
-            {
-                Globals.sharedSpatialHasher.Data.Update(ref hashed, e, translation.Value);
-            }
-            ).ScheduleParallel(updateGridNodePositions);
+        updateSpatialHasher = new UpdateSpatialHasherJob { spatialHasher = SpatialHasher.sharedInstance }.ScheduleParallel(updateGridNodePositions);
         Dependency = updateSpatialHasher;
 
-        EntityCommandBuffer.ParallelWriter ecb = ecbSystem.CreateCommandBuffer().AsParallelWriter();
-        removeDeadNodes = Entities
-            .WithAll<GridNode, Translation, SpatiallyHashed>()
-            .ForEach(
-            (in SpatiallyHashed hashed, in Entity e, in int entityInQueryIndex, in GridNode gridNode, in Translation translation) =>
-            {
-                if (gridNode.isDead)
-                {
-                    Globals.sharedSpatialHasher.Data.Remove(hashed, e);
-                    ecb.DestroyEntity(entityInQueryIndex, e);
-                }
-            }
-        ).ScheduleParallel(updateSpatialHasher);
+        removeDeadNodes = new RemoveDeadNodesJob { spatialHasher = SpatialHasher.sharedInstance, ecb = ecbSystem.CreateCommandBuffer().AsParallelWriter() }.ScheduleParallel(updateSpatialHasher);
         ecbSystem.AddJobHandleForProducer(removeDeadNodes);
         Dependency = removeDeadNodes;
     }
