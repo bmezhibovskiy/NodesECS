@@ -87,25 +87,13 @@ public partial struct UpdateNodePositionsJob: IJobEntity
 }
 
 [BurstCompile]
-public partial struct UpdateSpatialHasherJob : IJobEntity
-{
-    public SpatialHasher spatialHasher;
-    void Execute(ref SpatiallyHashed hashed, in Entity e, in Translation translation)
-    {
-        spatialHasher.Update(ref hashed, e, translation.Value);
-    }
-}
-
-[BurstCompile]
 public partial struct RemoveDeadNodesJob: IJobEntity
 {
-    public SpatialHasher spatialHasher;
     public EntityCommandBuffer.ParallelWriter ecb;
-    void Execute(in SpatiallyHashed hashed, in Entity e, [EntityInQueryIndex] int entityInQueryIndex, in GridNode gridNode, in Translation translation)
+    void Execute(in Entity e, [EntityInQueryIndex] int entityInQueryIndex, in GridNode gridNode)
     {
         if (gridNode.isDead)
         {
-            spatialHasher.Remove(hashed, e);
             ecb.DestroyEntity(entityInQueryIndex, e);
         }
     }
@@ -117,7 +105,6 @@ public partial class NodeSystem : SystemBase
     private JobHandle disposeSectorObjectsArray;
     private JobHandle renderNodes;
     private JobHandle updateGridNodePositions;
-    private JobHandle updateSpatialHasher;
     private JobHandle removeDeadNodes;
 
     private EndSimulationEntityCommandBufferSystem ecbSystem;
@@ -138,19 +125,16 @@ public partial class NodeSystem : SystemBase
         updateNodeVelocities = new UpdateNodeVelocitiesJob { sectorObjects = sectorObjects, translationData = translationData, sectorObjectData = sectorObjectData }.ScheduleParallel(Dependency);
         Dependency = updateNodeVelocities;
 
-        disposeSectorObjectsArray = sectorObjects.Dispose(updateNodeVelocities);
+        disposeSectorObjectsArray = sectorObjects.Dispose(Dependency);
         Dependency = disposeSectorObjectsArray;
 
-        renderNodes = new RenderNodesJob().ScheduleParallel(disposeSectorObjectsArray);
+        renderNodes = new RenderNodesJob().ScheduleParallel(Dependency);
         Dependency = renderNodes;
 
-        updateGridNodePositions = new UpdateNodePositionsJob().ScheduleParallel(renderNodes);
+        updateGridNodePositions = new UpdateNodePositionsJob().ScheduleParallel(Dependency);
         Dependency = updateGridNodePositions;
 
-        updateSpatialHasher = new UpdateSpatialHasherJob { spatialHasher = SpatialHasher.sharedInstance }.ScheduleParallel(updateGridNodePositions);
-        Dependency = updateSpatialHasher;
-
-        removeDeadNodes = new RemoveDeadNodesJob { spatialHasher = SpatialHasher.sharedInstance, ecb = ecbSystem.CreateCommandBuffer().AsParallelWriter() }.ScheduleParallel(updateSpatialHasher);
+        removeDeadNodes = new RemoveDeadNodesJob { ecb = ecbSystem.CreateCommandBuffer().AsParallelWriter() }.ScheduleParallel(Dependency);
         ecbSystem.AddJobHandleForProducer(removeDeadNodes);
         Dependency = removeDeadNodes;
     }

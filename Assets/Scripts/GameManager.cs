@@ -4,7 +4,6 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using Unity.Burst;
 using System.Collections.Generic;
-using Unity.Collections;
 
 public static class Globals
 {
@@ -48,21 +47,11 @@ public class GameManager : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        float cellSize = 0.5f;
-        float sideSize = nodeDistance * numSideNodes * 1.25f;
-        SpatialHasher.sharedInstance.Initialize(cellSize, sideSize);
-
         mainCamera.orthographic = true;
  
         GenerateNodes();
-        AddSectorObject(new float3(-10, 0, 0));
+        AddSectorObject(new float3(-5, 0, 0));
         AddShip(new float3(2, 2, 0));
-        AddShip(new float3(-2, -2, 0));
-    }
-
-    private void OnDestroy()
-    {
-        SpatialHasher.sharedInstance.Dispose();
     }
 
     // Update is called once per frame
@@ -118,9 +107,6 @@ public class GameManager : MonoBehaviour
         Entity e = em.CreateEntity(ea);
         em.AddComponentData(e, new Translation { Value = pos });
         em.AddComponentData(e, new GridNode { velocity = float3.zero, isDead = false });
-        SpatiallyHashed hashed = new SpatiallyHashed { };
-        SpatialHasher.sharedInstance.Add(ref hashed, e, pos);
-        em.AddComponentData(e, hashed);
     }
 
     private void AddSectorObject(float3 pos)
@@ -180,6 +166,5 @@ public class GameManager : MonoBehaviour
         Vector3 camPos = mainCamera.transform.position;
         Vector3 labelPos = new Vector3(camPos.x - 4.3f, camPos.y - 4.4f, 0);
         UnityEditor.Handles.Label(labelPos, "FPS: " + (int)(fps), style);
-        
     }
 }

@@ -13,7 +13,7 @@ public struct SpatiallyHashed : IComponentData
 public struct SpatialHasher
 {
     public static SpatialHasher sharedInstance = new SpatialHasher();
-    public readonly static int maxEntitiesInBucket = 64;
+    public readonly static int startingMaxEntitiesInBucket = 64;
     [NativeDisableParallelForRestriction] public NativeArray<Entity> entitiesInBuckets; //Flattened 2d array
     [NativeDisableParallelForRestriction] public NativeArray<int> bucketCounts;
 
@@ -24,6 +24,8 @@ public struct SpatialHasher
     public int numSideBuckets;
     public float offset;
     public int numBuckets;
+    public int maxEntitiesInBucket;
+    private bool needsResize;
 
     public static int NumBuckets(float bucketSize, float totalSideLength)
     {
@@ -33,12 +35,14 @@ public struct SpatialHasher
 
     public void Initialize(float bucketSize, float totalSideLength)
     {
+        needsResize = false;
+        maxEntitiesInBucket = startingMaxEntitiesInBucket;
         inverseBucketSize = 1 / bucketSize;
         numSideBuckets = (int)(totalSideLength * inverseBucketSize);
         offset = totalSideLength * 0.5f;
         numBuckets = numSideBuckets * numSideBuckets;
 
-        entitiesInBuckets = new NativeArray<Entity>(numBuckets * SpatialHasher.maxEntitiesInBucket, Allocator.Persistent);
+        entitiesInBuckets = new NativeArray<Entity>(numBuckets * maxEntitiesInBucket, Allocator.Persistent);
         bucketCounts = new NativeArray<int>(numBuckets, Allocator.Persistent);
 
         int2[][] rawSearchCoords = SearchCoords.GenerateShells(numSideBuckets);
@@ -75,7 +79,15 @@ public struct SpatialHasher
         int hash = Hash(pos);
         int newEntityIndex = bucketCounts[hash];
 
-        if (newEntityIndex >= maxEntitiesInBucket) { return; }
+        if (newEntityIndex >= maxEntitiesInBucket)
+        {
+            return;
+        }
+
+        if (newEntityIndex > maxEntitiesInBucket/2)
+        {
+            needsResize = true;
+        }
 
         bucketCounts[hash] = newEntityIndex + 1;
 
@@ -169,6 +181,15 @@ public struct SpatialHasher
         searchCoordLengths.Dispose();
     }
 
+    public void ResizeIfNeeded()
+    {
+        if (needsResize)
+        {
+            Resize();
+            needsResize = false;
+        }
+    }
+
     private int Hash(float3 point)
     {
         int x = (int)((point.x + offset) * inverseBucketSize);
@@ -178,6 +199,27 @@ public struct SpatialHasher
         hash = math.clamp(hash, 0, numBuckets);
 
         return hash;
+    }
+
+    private void Resize()
+    {
+        int oldMaxEntites = maxEntitiesInBucket;
+        maxEntitiesInBucket = 2 * oldMaxEntites;
+
+        Debug.Log($"Resizing Spatial Hasher from {oldMaxEntites} to {maxEntitiesInBucket}");
+
+        NativeArray<Entity> newEntitiesArray = new NativeArray<Entity>(numBuckets * maxEntitiesInBucket, Allocator.Persistent);
+        for(int i = 0; i < numBuckets; ++i)
+        {
+            for(int j = 0; j < oldMaxEntites; ++j)
+            {
+                int oldIndex = Utils.to1D(j, i, oldMaxEntites);
+                int newIndex = Utils.to1D(j, i, maxEntitiesInBucket);
+                newEntitiesArray[newIndex] = entitiesInBuckets[oldIndex];
+            }
+        }
+        entitiesInBuckets.Dispose();
+        entitiesInBuckets = newEntitiesArray;
     }
 }
 public class SearchCoords

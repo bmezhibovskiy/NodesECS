@@ -9,10 +9,18 @@ using UnityEngine;
 
 public struct ClosestNodes
 {
-    [ReadOnly] public const int numClosestNodes = 3;
+    public readonly static int numClosestNodes = 3;
+    public readonly static ClosestNodes empty = new ClosestNodes
+    {
+        closestNode1 = Entity.Null,
+        closestNode2 = Entity.Null,
+        closestNode3 = Entity.Null
+    };
+
     public Entity closestNode1;
     public Entity closestNode2;
     public Entity closestNode3;
+
     public Entity Get(int index)
     {
         switch (index)
@@ -65,7 +73,7 @@ public partial struct FindClosestNodesJob : IJobEntity
     void Execute(ref Ship s, in Translation t)
     {
         float3 shipPos = t.Value;
-        s.closestNodes = new ClosestNodes { closestNode1 = Entity.Null, closestNode2 = Entity.Null, closestNode3 = Entity.Null };
+        s.closestNodes = ClosestNodes.empty;
 
         //Instead of just sorting the nodes array,
         //It should be faster to just find the closest K nodes (currently 3)
@@ -110,37 +118,6 @@ public partial struct FindClosestNodesJob : IJobEntity
     }
 }
 
-[BurstCompile]
-public partial struct FindClosestNodesECSJob: IJobEntity
-{
-    [ReadOnly] public ComponentDataFromEntity<Translation> translationData;
-    [ReadOnly] public SpatialHasher spatialHasher;
-
-    void Execute(ref Ship s, in Translation t)
-    {
-        float3 shipPos = t.Value;
-        s.closestNodes = new ClosestNodes { closestNode1 = Entity.Null, closestNode2 = Entity.Null, closestNode3 = Entity.Null };
-
-
-        NativeArray<Entity> closestArray = spatialHasher.ClosestNodes(shipPos, 3, translationData);
-        for (int i = 0; i < closestArray.Length && i < ClosestNodes.numClosestNodes; ++i)
-        {
-            s.closestNodes.Set(closestArray[i], i);
-        }
-
-        //Once we've updated the closest nodes, we can draw lines for debug visualization
-        for (int i = 0; i < ClosestNodes.numClosestNodes; ++i)
-        {
-            Entity closest = s.closestNodes.Get(i);
-            if (translationData.HasComponent(closest))
-            {
-                float3 nodePos = translationData[closest].Value;
-                Debug.DrawLine(shipPos, nodePos);
-            }
-        }
-    }
-}
-
 public partial class ShipSystem : SystemBase
 {
     private JobHandle updateShips;
@@ -150,22 +127,13 @@ public partial class ShipSystem : SystemBase
     protected override void OnUpdate()
     {
         ComponentDataFromEntity<Translation> translationData = GetComponentDataFromEntity<Translation>();
+        NativeArray<Entity> nodes = GetEntityQuery(typeof(GridNode), typeof(Translation)).ToEntityArray(Allocator.TempJob);
 
-        if (Globals.sharedInputState.Data.isIKeyDown)
-        {
-            updateShips = new FindClosestNodesECSJob { translationData = translationData, spatialHasher = SpatialHasher.sharedInstance }.ScheduleParallel(Dependency);
-            Dependency = updateShips;
-        }
-        else
-        {
-            NativeArray<Entity> nodes = GetEntityQuery(typeof(GridNode), typeof(Translation)).ToEntityArray(Allocator.TempJob);
+        updateShips = new FindClosestNodesJob { translationData = translationData, nodes = nodes }.ScheduleParallel(Dependency);
+        Dependency = updateShips;
 
-            updateShips = new FindClosestNodesJob { translationData = translationData, nodes = nodes }.ScheduleParallel(Dependency);
-            Dependency = updateShips;
-
-            disposeNodesArray = nodes.Dispose(updateShips);
-            Dependency = disposeNodesArray;
-        }
+        disposeNodesArray = nodes.Dispose(Dependency);
+        Dependency = disposeNodesArray;
     }
 }
 public struct EntityComparer : IComparer<Entity>
