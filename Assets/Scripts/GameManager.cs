@@ -59,9 +59,11 @@ public class GameManager : MonoBehaviour
 
     float nodeDistance = 1.2f;
     float3 nodeOffset = new float3(0, 1, 0) * 1.2f;
-    int numSideNodes = 99;
-    int numNodes = 99 * 99;
+    int numSideNodes = 51;
+    int numNodes = 51 * 51;
     bool is3d = false;
+
+    Entity playerEntity;
 
     // Start is called before the first frame update
     void Start()
@@ -70,13 +72,17 @@ public class GameManager : MonoBehaviour
  
         GenerateNodes();
         AddSectorObject(new float3(-5, 0, 0));
-        AddShip(new float3(2, 2, 0), true);
+        playerEntity = AddShip(new float3(2, 2, 0), true);
     }
 
     // Update is called once per frame
     void Update()
     {
         Globals.sharedTimeState.Data.deltaTime = Time.deltaTime;
+
+        EntityManager em = World.DefaultGameObjectInjectionWorld.EntityManager;
+        Vector3 shipPos = em.GetComponentData<Translation>(playerEntity).Value;
+        mainCamera.transform.position = new Vector3(shipPos.x, shipPos.y, mainCamera.transform.position.z);
 
         UpdateInput();
 
@@ -127,13 +133,13 @@ public class GameManager : MonoBehaviour
     private void AddSectorObject(float3 pos)
     {
         EntityManager em = World.DefaultGameObjectInjectionWorld.EntityManager;
-        EntityArchetype ea = em.CreateArchetype(typeof(Translation), typeof(SectorObject));
+        EntityArchetype ea = em.CreateArchetype(typeof(Translation), typeof(Station));
         Entity e = em.CreateEntity(ea);
         em.AddComponentData(e, new Translation { Value = pos });
-        em.AddComponentData(e, new SectorObject { radius = 1.0f }); ;
+        em.AddComponentData(e, new Station { size = 1f });
     }
 
-    private void AddShip(float3 pos, bool isPlayer)
+    private Entity AddShip(float3 pos, bool isPlayer)
     {
         EntityManager em = World.DefaultGameObjectInjectionWorld.EntityManager;
         EntityArchetype ea = em.CreateArchetype(typeof(Translation), typeof(Ship));
@@ -152,6 +158,7 @@ public class GameManager : MonoBehaviour
         {
             em.AddComponentData(e, new Player { });
         }
+        return e;
     }
 
     private bool IsBorder(int[] raw)

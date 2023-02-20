@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Drawing;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -60,6 +61,8 @@ public struct ClosestNodes
 
 public struct Ship : IComponentData
 {
+    public float size;
+
     public ClosestNodes closestNodes;
     public float3 nodeOffset;
     public float3 prevPos;
@@ -100,6 +103,25 @@ public struct Ship : IComponentData
     {
         return AverageNodePos(translationData) + nodeOffset;
     }
+    public void HandleCollisionAt(float3 collisionPos, float3 normal, float bounciness = 0.5f)
+    {
+        nextPos = collisionPos;
+        if (math.distancesq(vel,float3.zero) < 0.00002f)
+        {
+            //Velocity too small, set to 0 instead of bouncing forever, which can cause instability
+            prevPos = collisionPos;
+            return;
+        }
+
+        //Reflect vel about normal
+        vel = (vel - 2f * Vector3.Dot(vel, normal) * normal) * bounciness;
+
+        //Would need time independent accel because otherwise we would need next frame's deltaTime to get the correct bounce
+        //Verlet integration doesn't seem good for velocity based forces, since velocity is derived.
+        //timeIndependentAccel += (-2 * normal * Vector3.Dot(vel, normal)) * bounciness;
+
+        prevPos = collisionPos - vel;
+    }
 }
 
 public struct Player: IComponentData
@@ -111,6 +133,7 @@ public struct Player: IComponentData
 public partial struct FindClosestNodesJob : IJobEntity
 {
     [ReadOnly] public ComponentDataFromEntity<Translation> translationData;
+    [ReadOnly] public ComponentDataFromEntity<GridNode> nodeData;
     [ReadOnly] public NativeArray<Entity> nodes;
 
     void Execute(ref Ship s, in Translation t)
@@ -126,6 +149,9 @@ public partial struct FindClosestNodesJob : IJobEntity
 
         for (int i = 0; i < nodes.Length; ++i)
         {
+            GridNode nodeComponent = nodeData[nodes[i]];
+            if (nodeComponent.isDead) { continue; }
+
             float3 nodePos = translationData[nodes[i]].Value;
             float newSqMag = math.distancesq(nodePos, shipPos);
 
@@ -148,6 +174,15 @@ public partial struct FindClosestNodesJob : IJobEntity
             }
         }
         s.nodeOffset = shipPos - s.AverageNodePos(translationData);
+
+
+        for (int i = 0; i < ClosestNodes.numClosestNodes; ++i)
+        {
+            if(translationData.HasComponent(s.closestNodes.Get(i)))
+            {
+                Debug.DrawLine(shipPos, translationData[s.closestNodes.Get(i)].Value);
+            }
+        }
     }
 }
 
@@ -181,13 +216,43 @@ public partial struct UpdatePlayerShipJob: IJobEntity
     }
 }
 
+public partial struct UpdateShipsWithStationsJob: IJobEntity
+{
+    [ReadOnly] public NativeArray<Entity> stations;
+    [ReadOnly] public ComponentDataFromEntity<Translation> translationData;
+    [ReadOnly] public ComponentDataFromEntity<Station> stationData;
+
+    void Execute(ref Ship ship)
+    {
+        float3 shipPos = ship.nextPos;
+        for(int i = 0; i < stations.Length; ++i)
+        {
+            Station station = stationData[stations[i]];
+            float3 stationPos = translationData[stations[i]].Value;
+            if (math.distance(shipPos, stationPos) < station.size + ship.size)
+            {
+                float3? intersection = Utils.LineSegmentCircleIntersection(stationPos, station.size + ship.size, ship.prevPos, shipPos);
+                if (intersection != null)
+                {
+                    ship.HandleCollisionAt(intersection.Value, math.normalize(intersection.Value - stationPos));
+                }
+            }
+
+            for(int j = 0; j < station.modules.Count; ++j)
+            {
+                //update the ship for every module
+            }
+        }
+    }
+}
+
 public partial struct IntegrateShipsJob: IJobEntity
 {
     [ReadOnly] public ComponentDataFromEntity<Translation> translationData;
-    void Execute(ref Ship ship, in Entity e)
+    void Execute(ref Ship ship)
     {
         float dt = Globals.sharedTimeState.Data.deltaTime;
-        float3 shipPos = translationData[e].Value;
+        float3 shipPos = ship.nextPos;
         float3 current = shipPos + (ship.GridPosition(translationData) - shipPos) * dt;
         ship.nextPos = 2 * current - ship.prevPos + ship.accel * (dt * dt);
         ship.accel = float3.zero;
@@ -207,7 +272,8 @@ public partial struct RenderShipsJob : IJobEntity
 {
     void Execute(in Ship ship, in Translation translation)
     {
-        Debug.DrawRay(translation.Value, ship.facing);
+        Debug.DrawRay(translation.Value, ship.facing, UnityEngine.Color.green);
+        Debug.DrawRay(translation.Value, ship.vel * 60f, UnityEngine.Color.red);
     }
 }
 public partial class ShipSystem : SystemBase
@@ -215,6 +281,8 @@ public partial class ShipSystem : SystemBase
     private JobHandle updateClosestNodes;
     private JobHandle disposeNodesArray;
     private JobHandle updatePlayerShip;
+    private JobHandle updateShipsWithStationsJob;
+    private JobHandle disposeStationsArray;
     private JobHandle integrateShips;
     private JobHandle updateShipPositions;
     private JobHandle renderShips;
@@ -223,9 +291,18 @@ public partial class ShipSystem : SystemBase
     protected override void OnUpdate()
     {
         ComponentDataFromEntity<Translation> translationData = GetComponentDataFromEntity<Translation>();
-        
+
         updatePlayerShip = new UpdatePlayerShipJob().ScheduleParallel(Dependency);
         Dependency = updatePlayerShip;
+
+        ComponentDataFromEntity<Station> stationData = GetComponentDataFromEntity<Station>();
+        NativeArray<Entity> stationEntities = GetEntityQuery(typeof(Station), typeof(Translation)).ToEntityArray(Allocator.TempJob);
+
+        updateShipsWithStationsJob = new UpdateShipsWithStationsJob { stations = stationEntities, stationData = stationData, translationData = translationData }.ScheduleParallel(Dependency);
+        Dependency = updateShipsWithStationsJob;
+
+        disposeStationsArray = stationEntities.Dispose(Dependency);
+        Dependency = disposeStationsArray;
 
         integrateShips = new IntegrateShipsJob { translationData = translationData }.ScheduleParallel(Dependency);
         Dependency = integrateShips;
@@ -234,8 +311,9 @@ public partial class ShipSystem : SystemBase
         Dependency = updateShipPositions;
 
         NativeArray<Entity> nodes = GetEntityQuery(typeof(GridNode), typeof(Translation)).ToEntityArray(Allocator.TempJob);
+        ComponentDataFromEntity<GridNode> nodeData = GetComponentDataFromEntity<GridNode>();
 
-        updateClosestNodes = new FindClosestNodesJob { translationData = translationData, nodes = nodes }.ScheduleParallel(Dependency);
+        updateClosestNodes = new FindClosestNodesJob { translationData = translationData, nodes = nodes, nodeData = nodeData }.ScheduleParallel(Dependency);
         Dependency = updateClosestNodes;
 
         disposeNodesArray = nodes.Dispose(Dependency);

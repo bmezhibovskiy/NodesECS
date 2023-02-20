@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
@@ -13,33 +12,28 @@ public struct GridNode : IComponentData
     public bool isDead;
 }
 
-public struct SectorObject : IComponentData
-{
-    public float radius;
-}
-
 [BurstCompile]
 public partial struct UpdateNodeVelocitiesJob: IJobEntity
 {
-    [ReadOnly] public NativeArray<Entity> sectorObjects;
+    [ReadOnly] public NativeArray<Entity> stationEntities;
     [ReadOnly] public ComponentDataFromEntity<Translation> translationData;
-    [ReadOnly] public ComponentDataFromEntity<SectorObject> sectorObjectData;
+    [ReadOnly] public ComponentDataFromEntity<Station> stationData;
     void Execute(ref GridNode gridNode, in Entity e)
     {
-        Translation translation = translationData[e];
+        float3 nodePos = translationData[e].Value;
         gridNode.velocity = float3.zero;
-        for (int i = 0; i < sectorObjects.Length; ++i)
+        for (int i = 0; i < stationEntities.Length; ++i)
         {
-            Translation soTranslation = translationData[sectorObjects[i]];
-            SectorObject soComponent = sectorObjectData[sectorObjects[i]];
-            float distSq = math.distancesq(translation.Value, soTranslation.Value);
-            if (distSq < soComponent.radius * soComponent.radius)
+            Translation sTranslation = translationData[stationEntities[i]];
+            Station station = stationData[stationEntities[i]];
+            float distSq = math.distancesq(nodePos, sTranslation.Value);
+            if (distSq < station.size * station.size)
             {
                 gridNode.isDead = true;
             }
             else
             {
-                gridNode.velocity += NodeVelocityAt(translation.Value, soTranslation.Value);
+                gridNode.velocity += NodeVelocityAt(nodePos, sTranslation.Value);
             }
         }
     }
@@ -67,11 +61,14 @@ public partial struct RenderNodesJob: IJobEntity
     void Execute(in GridNode gridNode, in Translation translation)
     {
         float3 velVec = gridNode.velocity;
-        if (math.distancesq(velVec, float3.zero) < 0.00001f)
+        if (math.distancesq(velVec, float3.zero) < 0.000002f)
         {
-            velVec = new float3(1, 0, 0) * 0.001f;
+            Utils.DebugDrawCircle(translation.Value, 0.02f, Color.white, 3);
         }
-        Debug.DrawRay(translation.Value, velVec * 20f);
+        else
+        {
+            Debug.DrawRay(translation.Value, -velVec * 30f);
+        }
     }
 }
 
@@ -100,7 +97,7 @@ public partial struct RemoveDeadNodesJob: IJobEntity
 public partial class NodeSystem : SystemBase
 {
     private JobHandle updateNodeVelocities;
-    private JobHandle disposeSectorObjectsArray;
+    private JobHandle disposeStationsArray;
     private JobHandle renderNodes;
     private JobHandle updateGridNodePositions;
     private JobHandle removeDeadNodes;
@@ -116,15 +113,15 @@ public partial class NodeSystem : SystemBase
     protected override void OnUpdate()
     {
         ComponentDataFromEntity<Translation> translationData = GetComponentDataFromEntity<Translation>();
-        ComponentDataFromEntity<SectorObject> sectorObjectData = GetComponentDataFromEntity<SectorObject>();
+        ComponentDataFromEntity<Station> stationData = GetComponentDataFromEntity<Station>();
 
-        NativeArray<Entity> sectorObjects = GetEntityQuery(typeof(SectorObject), typeof(Translation)).ToEntityArray(Allocator.TempJob);
+        NativeArray<Entity> stations = GetEntityQuery(typeof(Station), typeof(Translation)).ToEntityArray(Allocator.TempJob);
 
-        updateNodeVelocities = new UpdateNodeVelocitiesJob { sectorObjects = sectorObjects, translationData = translationData, sectorObjectData = sectorObjectData }.ScheduleParallel(Dependency);
+        updateNodeVelocities = new UpdateNodeVelocitiesJob { stationEntities = stations, translationData = translationData, stationData = stationData }.ScheduleParallel(Dependency);
         Dependency = updateNodeVelocities;
 
-        disposeSectorObjectsArray = sectorObjects.Dispose(Dependency);
-        Dependency = disposeSectorObjectsArray;
+        disposeStationsArray = stations.Dispose(Dependency);
+        Dependency = disposeStationsArray;
 
         renderNodes = new RenderNodesJob().ScheduleParallel(Dependency);
         Dependency = renderNodes;
