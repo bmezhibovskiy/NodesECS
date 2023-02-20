@@ -62,6 +62,49 @@ public struct Ship : IComponentData
 {
     public ClosestNodes closestNodes;
     public float3 nodeOffset;
+    public float3 prevPos;
+    public float3 nextPos;
+    public float3 facing;
+    public float3 accel;
+    public float3 vel;//derived from translation and prevPos
+
+    public void Rotate(float speed)
+    {
+        facing = math.rotate(quaternion.RotateZ(speed), facing);
+    }
+    public void AddThrust(float strength)
+    {
+        accel += facing * strength;
+    }
+    public float3 AverageNodePos(ComponentDataFromEntity<Translation> translationData)
+    {
+        float3 avgPos = float3.zero;
+        int numClosest = 0;
+        for(int i = 0; i < ClosestNodes.numClosestNodes; ++i)
+        {
+            Entity closest = closestNodes.Get(i);
+            if (translationData.HasComponent(closest))
+            {
+                avgPos += translationData[closest].Value;
+                ++numClosest;
+            }
+        }
+        if (numClosest > 0)
+        {
+            return avgPos / (float)numClosest;
+        }
+        return prevPos;
+    }
+
+    public float3 GridPosition(ComponentDataFromEntity<Translation> translationData)
+    {
+        return AverageNodePos(translationData) + nodeOffset;
+    }
+}
+
+public struct Player: IComponentData
+{
+
 }
 
 [BurstCompile]
@@ -104,36 +147,102 @@ public partial struct FindClosestNodesJob : IJobEntity
                 }
             }
         }
+        s.nodeOffset = shipPos - s.AverageNodePos(translationData);
+    }
+}
 
-        //Once we've updated the closest nodes, we can draw lines for debug visualization
-        for (int i = 0; i < ClosestNodes.numClosestNodes; ++i)
+public partial struct UpdatePlayerShipJob: IJobEntity
+{
+    void Execute(ref Ship ship, Player p)
+    {
+        float dt = Globals.sharedTimeState.Data.deltaTime;
+        float rspeed = 2f * dt;
+        float fspeed = 2f;
+        if (Globals.sharedInputState.Data.isLeftKeyDown)
         {
-            Entity closest = s.closestNodes.Get(i);
-            if (translationData.HasComponent(closest))
-            {
-                float3 nodePos = translationData[closest].Value;
-                Debug.DrawLine(shipPos, nodePos);
-            }
+            ship.Rotate(rspeed);
+        }
+        if (Globals.sharedInputState.Data.isRightKeyDown)
+        {
+            ship.Rotate(-rspeed);
+        }
+        if (Globals.sharedInputState.Data.isUpKeyDown)
+        {
+            ship.AddThrust(fspeed);
+        }
+        if (Globals.sharedInputState.Data.isDownKeyDown)
+        {
+            ship.AddThrust(-fspeed);
+        }
+        if (Globals.sharedInputState.Data.isSpaceDown)
+        {
+            ship.AddThrust(fspeed * 2.0f);
         }
     }
 }
 
+public partial struct IntegrateShipsJob: IJobEntity
+{
+    [ReadOnly] public ComponentDataFromEntity<Translation> translationData;
+    void Execute(ref Ship ship, in Entity e)
+    {
+        float dt = Globals.sharedTimeState.Data.deltaTime;
+        float3 shipPos = translationData[e].Value;
+        float3 current = shipPos + (ship.GridPosition(translationData) - shipPos) * dt;
+        ship.nextPos = 2 * current - ship.prevPos + ship.accel * (dt * dt);
+        ship.accel = float3.zero;
+        ship.prevPos = current;
+        ship.vel = ship.nextPos - current;
+    }
+}
+public partial struct UpdateShipPositionsJob : IJobEntity
+{
+    void Execute(ref Translation translation, in Ship ship)
+    {
+        translation.Value = ship.nextPos;
+    }
+}
+
+public partial struct RenderShipsJob : IJobEntity
+{
+    void Execute(in Ship ship, in Translation translation)
+    {
+        Debug.DrawRay(translation.Value, ship.facing);
+    }
+}
 public partial class ShipSystem : SystemBase
 {
-    private JobHandle updateShips;
+    private JobHandle updateClosestNodes;
     private JobHandle disposeNodesArray;
+    private JobHandle updatePlayerShip;
+    private JobHandle integrateShips;
+    private JobHandle updateShipPositions;
+    private JobHandle renderShips;
 
     [BurstCompile]
     protected override void OnUpdate()
     {
         ComponentDataFromEntity<Translation> translationData = GetComponentDataFromEntity<Translation>();
+        
+        updatePlayerShip = new UpdatePlayerShipJob().ScheduleParallel(Dependency);
+        Dependency = updatePlayerShip;
+
+        integrateShips = new IntegrateShipsJob { translationData = translationData }.ScheduleParallel(Dependency);
+        Dependency = integrateShips;
+
+        updateShipPositions = new UpdateShipPositionsJob().ScheduleParallel(Dependency);
+        Dependency = updateShipPositions;
+
         NativeArray<Entity> nodes = GetEntityQuery(typeof(GridNode), typeof(Translation)).ToEntityArray(Allocator.TempJob);
 
-        updateShips = new FindClosestNodesJob { translationData = translationData, nodes = nodes }.ScheduleParallel(Dependency);
-        Dependency = updateShips;
+        updateClosestNodes = new FindClosestNodesJob { translationData = translationData, nodes = nodes }.ScheduleParallel(Dependency);
+        Dependency = updateClosestNodes;
 
         disposeNodesArray = nodes.Dispose(Dependency);
         Dependency = disposeNodesArray;
+
+        renderShips = new RenderShipsJob().ScheduleParallel(Dependency);
+        Dependency = renderShips;
     }
 }
 public struct EntityComparer : IComparer<Entity>

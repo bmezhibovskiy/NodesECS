@@ -8,11 +8,22 @@ using System.Collections.Generic;
 public static class Globals
 {
     public readonly static SharedStatic<InputState> sharedInputState = SharedStatic<InputState>.GetOrCreate<InputStateKey>();
+    public readonly static SharedStatic<TimeState> sharedTimeState = SharedStatic<TimeState>.GetOrCreate<TimeStateKey>();
     private class InputStateKey { }
+    private class TimeStateKey { }
 
     static Globals()
     {
         sharedInputState.Data.Initialize();
+        sharedTimeState.Data.Initialize();
+    }
+}
+public struct TimeState
+{
+    public float deltaTime;
+    public void Initialize()
+    {
+        deltaTime = 0.0167f;
     }
 }
 
@@ -20,10 +31,18 @@ public struct InputState
 {
     public bool isSpaceDown;
     public bool isIKeyDown;
+    public bool isUpKeyDown;
+    public bool isDownKeyDown;
+    public bool isLeftKeyDown;
+    public bool isRightKeyDown;
     public void Initialize()
     {
         isSpaceDown = false;
         isIKeyDown = false;
+        isUpKeyDown = false;
+        isDownKeyDown = false;
+        isLeftKeyDown = false;
+        isRightKeyDown = false;
     }
 }
 
@@ -51,31 +70,27 @@ public class GameManager : MonoBehaviour
  
         GenerateNodes();
         AddSectorObject(new float3(-5, 0, 0));
-        AddShip(new float3(2, 2, 0));
+        AddShip(new float3(2, 2, 0), true);
     }
 
     // Update is called once per frame
     void Update()
     {
-        if(Input.GetKey(KeyCode.Space))
-        {
-            Globals.sharedInputState.Data.isSpaceDown = true;
-        }
-        else
-        {
-            Globals.sharedInputState.Data.isSpaceDown = false;
-        }
+        Globals.sharedTimeState.Data.deltaTime = Time.deltaTime;
 
-        if (Input.GetKey(KeyCode.I))
-        {
-            Globals.sharedInputState.Data.isIKeyDown = true;
-        }
-        else
-        {
-            Globals.sharedInputState.Data.isIKeyDown = false;
-        }
+        UpdateInput();
 
         UpdateFPSCounter();
+    }
+
+    private void UpdateInput()
+    {
+        Globals.sharedInputState.Data.isSpaceDown = Input.GetKey(KeyCode.Space);
+        Globals.sharedInputState.Data.isIKeyDown = Input.GetKey(KeyCode.I);
+        Globals.sharedInputState.Data.isUpKeyDown = Input.GetKey(KeyCode.UpArrow);
+        Globals.sharedInputState.Data.isDownKeyDown = Input.GetKey(KeyCode.DownArrow);
+        Globals.sharedInputState.Data.isLeftKeyDown = Input.GetKey(KeyCode.LeftArrow);
+        Globals.sharedInputState.Data.isRightKeyDown = Input.GetKey(KeyCode.RightArrow);
     }
 
     private void GenerateNodes()
@@ -118,13 +133,25 @@ public class GameManager : MonoBehaviour
         em.AddComponentData(e, new SectorObject { radius = 1.0f }); ;
     }
 
-    private void AddShip(float3 pos)
+    private void AddShip(float3 pos, bool isPlayer)
     {
         EntityManager em = World.DefaultGameObjectInjectionWorld.EntityManager;
         EntityArchetype ea = em.CreateArchetype(typeof(Translation), typeof(Ship));
         Entity e = em.CreateEntity(ea);
         em.AddComponentData(e, new Translation { Value = pos });
-        em.AddComponentData(e, new Ship { });
+        em.AddComponentData(e, new Ship {
+            closestNodes = ClosestNodes.empty,
+            nodeOffset = float3.zero,
+            prevPos = pos,
+            nextPos = pos,
+            facing = new float3(0,1,0),
+            accel = float3.zero,
+            vel = float3.zero
+        }); 
+        if(isPlayer)
+        {
+            em.AddComponentData(e, new Player { });
+        }
     }
 
     private bool IsBorder(int[] raw)
