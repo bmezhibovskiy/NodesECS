@@ -158,7 +158,7 @@ public struct SpatialHasher
                 }
             }
             //Sort Shell entities
-            EntityComparer comparer = new EntityComparer { pos = point, translationData = translationData };
+            EntityComparerWithTD comparer = new EntityComparerWithTD { pos = point, translationData = translationData };
             shellEntities.Sort(comparer);
 
             //Copy Shell entities into closest entities

@@ -4,6 +4,7 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using Unity.Burst;
 using System.Collections.Generic;
+using Unity.Collections;
 
 public static class Globals
 {
@@ -57,30 +58,34 @@ public class GameManager : MonoBehaviour
     [SerializeField]
     Material nodeMaterial;
 
-    float nodeDistance = 1.2f;
-    float3 nodeOffset = new float3(0, 1, 0) * 1.2f;
-    int numSideNodes = 51;
-    int numNodes = 51 * 51;
-    bool is3d = false;
+    //TODO: Get these from file
+    private float nodeDistance = 1.2f;
+    private float3 nodeOffset = new float3(0, 1, 0) * 1.2f;
+    private int numSideNodes = 17;
+    private int numNodes = 17 * 17;
+    private bool is3d = false;
+    //
 
-    Entity playerEntity;
+    private EntityManager em;
+    private Entity playerEntity;
 
-    // Start is called before the first frame update
     void Start()
     {
+        em = World.DefaultGameObjectInjectionWorld.EntityManager;
+
         mainCamera.orthographic = true;
  
         GenerateNodes();
-        AddSectorObject(new float3(-5, 0, 0));
-        playerEntity = AddShip(new float3(2, 2, 0), true);
+        GenerateConnections();
+        AddSectorObject(new float3(-2, 0, 0));
+        playerEntity = AddShip(new float3(0, 0, 0), true);
     }
 
     // Update is called once per frame
     void Update()
     {
         Globals.sharedTimeState.Data.deltaTime = Time.deltaTime;
-
-        EntityManager em = World.DefaultGameObjectInjectionWorld.EntityManager;
+ 
         Vector3 shipPos = em.GetComponentData<Translation>(playerEntity).Value;
         mainCamera.transform.position = new Vector3(shipPos.x, shipPos.y, mainCamera.transform.position.z);
 
@@ -120,19 +125,74 @@ public class GameManager : MonoBehaviour
             }
         }
     }
+    private void GenerateConnections()
+    {
+        NativeArray<Entity> entities = em.GetAllEntities();
+        for(int i = 0; i < entities.Length; ++i)
+        {
+            if (!em.HasComponent<GridNode>(entities[i])) { continue; }
+
+            GridNode gridNode = em.GetComponentData<GridNode>(entities[i]);
+
+            if (!gridNode.isBorder) { continue; }
+
+            float3 gridNodePos = em.GetComponentData<Translation>(entities[i]).Value;
+
+            NativeArray<Entity> closest = AllClosestNodes(gridNodePos);
+            for(int j = 0; j < closest.Length; ++j)
+            {
+                GridNode closestGridNode = em.GetComponentData<GridNode>(closest[j]);
+                if(!closestGridNode.isBorder)
+                {
+                    AddConnection(entities[i], closest[j]);
+                    break;
+                }
+            }   
+        }
+    }
+
+    private void AddConnection(Entity a, Entity b)
+    {
+        EntityArchetype ea = em.CreateArchetype(typeof(NodeConnection));
+        Entity e = em.CreateEntity(ea);
+        em.AddComponentData(e, new NodeConnection { a = a, b = b });
+    }
+
+    private NativeArray<Entity> AllClosestNodes(float3 pos)
+    {
+        NativeArray<Entity> allEntities = em.GetAllEntities();
+        int numNodes = 0;
+        for (int i = 0; i < allEntities.Length; ++i)
+        {
+            if (em.HasComponent<GridNode>(allEntities[i]))
+            {
+                ++numNodes;
+            }
+        }
+        NativeArray<Entity> nodes = new NativeArray<Entity>(numNodes, Allocator.Temp);
+        int currentNode = 0;
+        for (int i = 0; i < allEntities.Length; ++i)
+        {
+            if (em.HasComponent<GridNode>(allEntities[i]))
+            {
+                nodes[currentNode++] = allEntities[i];
+            }
+        }
+
+        nodes.Sort(new EntityComparerWithEM { em = em, pos = pos });
+        return nodes;
+    }
 
     private void AddNode(float3 pos, bool isBorder)
     {
-        EntityManager em = World.DefaultGameObjectInjectionWorld.EntityManager;
         EntityArchetype ea = em.CreateArchetype(typeof(Translation), typeof(GridNode));
         Entity e = em.CreateEntity(ea);
         em.AddComponentData(e, new Translation { Value = pos });
-        em.AddComponentData(e, new GridNode { velocity = float3.zero, isDead = false });
+        em.AddComponentData(e, new GridNode { velocity = float3.zero, isDead = false, isBorder = isBorder });
     }
 
     private void AddSectorObject(float3 pos)
     {
-        EntityManager em = World.DefaultGameObjectInjectionWorld.EntityManager;
         EntityArchetype ea = em.CreateArchetype(typeof(Translation), typeof(Station));
         Entity e = em.CreateEntity(ea);
         em.AddComponentData(e, new Translation { Value = pos });
@@ -141,8 +201,10 @@ public class GameManager : MonoBehaviour
 
     private Entity AddShip(float3 pos, bool isPlayer)
     {
-        EntityManager em = World.DefaultGameObjectInjectionWorld.EntityManager;
-        EntityArchetype ea = em.CreateArchetype(typeof(Translation), typeof(Ship));
+        EntityArchetype ea = isPlayer ? 
+            em.CreateArchetype(typeof(Translation), typeof(Ship), typeof(Player)) :
+            em.CreateArchetype(typeof(Translation), typeof(Ship));
+
         Entity e = em.CreateEntity(ea);
         em.AddComponentData(e, new Translation { Value = pos });
         em.AddComponentData(e, new Ship {

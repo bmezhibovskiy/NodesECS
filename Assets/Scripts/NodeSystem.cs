@@ -5,11 +5,13 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
+using static UnityEditor.PlayerSettings;
 
 public struct GridNode : IComponentData
 {
     public float3 velocity;
     public bool isDead;
+    public bool isBorder;
 }
 
 [BurstCompile]
@@ -20,6 +22,7 @@ public partial struct UpdateNodeVelocitiesJob: IJobEntity
     [ReadOnly] public ComponentDataFromEntity<Station> stationData;
     void Execute(ref GridNode gridNode, in Entity e)
     {
+        if (gridNode.isBorder) { return; }
         float3 nodePos = translationData[e].Value;
         gridNode.velocity = float3.zero;
         for (int i = 0; i < stationEntities.Length; ++i)
@@ -112,8 +115,11 @@ public partial class NodeSystem : SystemBase
     [BurstCompile]
     protected override void OnUpdate()
     {
+        EntityCommandBuffer.ParallelWriter ecb = ecbSystem.CreateCommandBuffer().AsParallelWriter();
+
         ComponentDataFromEntity<Translation> translationData = GetComponentDataFromEntity<Translation>();
         ComponentDataFromEntity<Station> stationData = GetComponentDataFromEntity<Station>();
+        ComponentDataFromEntity<GridNode> nodeData = GetComponentDataFromEntity<GridNode>();
 
         NativeArray<Entity> stations = GetEntityQuery(typeof(Station), typeof(Translation)).ToEntityArray(Allocator.TempJob);
 
