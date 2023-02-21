@@ -184,6 +184,7 @@ public partial struct FindClosestNodesJob : IJobEntity
     }
 }
 
+[BurstCompile]
 public partial struct UpdatePlayerShipJob: IJobEntity
 {
     void Execute(ref Ship ship, Player p)
@@ -214,6 +215,7 @@ public partial struct UpdatePlayerShipJob: IJobEntity
     }
 }
 
+[BurstCompile]
 public partial struct UpdateShipsWithStationsJob: IJobEntity
 {
     [ReadOnly] public NativeArray<Entity> stations;
@@ -244,6 +246,7 @@ public partial struct UpdateShipsWithStationsJob: IJobEntity
     }
 }
 
+[BurstCompile]
 public partial struct IntegrateShipsJob: IJobEntity
 {
     [ReadOnly] public ComponentDataFromEntity<Translation> translationData;
@@ -258,6 +261,8 @@ public partial struct IntegrateShipsJob: IJobEntity
         ship.vel = ship.nextPos - current;
     }
 }
+
+[BurstCompile]
 public partial struct UpdateShipPositionsJob : IJobEntity
 {
     void Execute(ref Translation translation, in Ship ship)
@@ -266,6 +271,7 @@ public partial struct UpdateShipPositionsJob : IJobEntity
     }
 }
 
+[BurstCompile]
 public partial struct RenderShipsJob : IJobEntity
 {
     void Execute(in Ship ship, in Translation translation)
@@ -276,49 +282,38 @@ public partial struct RenderShipsJob : IJobEntity
 }
 public partial class ShipSystem : SystemBase
 {
-    private JobHandle updateClosestNodes;
-    private JobHandle disposeNodesArray;
-    private JobHandle updatePlayerShip;
-    private JobHandle updateShipsWithStationsJob;
-    private JobHandle disposeStationsArray;
-    private JobHandle integrateShips;
-    private JobHandle updateShipPositions;
-    private JobHandle renderShips;
 
     [BurstCompile]
     protected override void OnUpdate()
     {
         ComponentDataFromEntity<Translation> translationData = GetComponentDataFromEntity<Translation>();
 
-        updatePlayerShip = new UpdatePlayerShipJob().ScheduleParallel(Dependency);
-        Dependency = updatePlayerShip;
+        Dependency = new UpdatePlayerShipJob().ScheduleParallel(Dependency);
 
         ComponentDataFromEntity<Station> stationData = GetComponentDataFromEntity<Station>();
+
+        //Needs dispose (stationEntities)
         NativeArray<Entity> stationEntities = GetEntityQuery(typeof(Station), typeof(Translation)).ToEntityArray(Allocator.TempJob);
 
-        updateShipsWithStationsJob = new UpdateShipsWithStationsJob { stations = stationEntities, stationData = stationData, translationData = translationData }.ScheduleParallel(Dependency);
-        Dependency = updateShipsWithStationsJob;
+        Dependency = new UpdateShipsWithStationsJob { stations = stationEntities, stationData = stationData, translationData = translationData }.ScheduleParallel(Dependency);
 
-        disposeStationsArray = stationEntities.Dispose(Dependency);
-        Dependency = disposeStationsArray;
+        //Gets disposed (stationEntities)
+        Dependency = stationEntities.Dispose(Dependency);
 
-        integrateShips = new IntegrateShipsJob { translationData = translationData }.ScheduleParallel(Dependency);
-        Dependency = integrateShips;
+        Dependency = new IntegrateShipsJob { translationData = translationData }.ScheduleParallel(Dependency);
 
-        updateShipPositions = new UpdateShipPositionsJob().ScheduleParallel(Dependency);
-        Dependency = updateShipPositions;
+        Dependency = new UpdateShipPositionsJob().ScheduleParallel(Dependency);
 
+        //Needs dispose (nodes)
         NativeArray<Entity> nodes = GetEntityQuery(typeof(GridNode), typeof(Translation)).ToEntityArray(Allocator.TempJob);
         ComponentDataFromEntity<GridNode> nodeData = GetComponentDataFromEntity<GridNode>();
 
-        updateClosestNodes = new FindClosestNodesJob { translationData = translationData, nodes = nodes, nodeData = nodeData }.ScheduleParallel(Dependency);
-        Dependency = updateClosestNodes;
+        Dependency = new FindClosestNodesJob { translationData = translationData, nodes = nodes, nodeData = nodeData }.ScheduleParallel(Dependency);
 
-        disposeNodesArray = nodes.Dispose(Dependency);
-        Dependency = disposeNodesArray;
+        //Gets disposed (nodes)
+        Dependency = nodes.Dispose(Dependency);
 
-        renderShips = new RenderShipsJob().ScheduleParallel(Dependency);
-        Dependency = renderShips;
+        Dependency = new RenderShipsJob().ScheduleParallel(Dependency);
     }
 }
 

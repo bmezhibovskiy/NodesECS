@@ -119,11 +119,12 @@ public struct Station: IComponentData
     public StationModules modules;
 }
 
+[BurstCompile]
 public partial struct RenderStationsJob: IJobEntity
 {
     void Execute(in Station s, in Translation t)
     {
-        Utils.DebugDrawCircle(t.Value, s.size, UnityEngine.Color.white, 20);
+        Utils.DebugDrawCircle(t.Value, s.size, Color.white, 20);
     }
 }
 

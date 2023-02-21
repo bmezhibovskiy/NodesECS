@@ -80,6 +80,7 @@ public partial struct ConnectToBorderJob : IJobEntity
     }
 }
 
+[BurstCompile]
 public partial struct RemoveNeedsConnectionJob: IJobEntity
 {
     public EntityCommandBuffer.ParallelWriter ecb;
@@ -104,6 +105,8 @@ public partial class NodeConnectionSystem : SystemBase
         ComponentDataFromEntity<Translation> translationData = GetComponentDataFromEntity<Translation>();
         ComponentDataFromEntity<GridNode> nodeData = GetComponentDataFromEntity<GridNode>();
         ComponentDataFromEntity<NeedsConnection> needsConnectionData = GetComponentDataFromEntity<NeedsConnection>();
+
+        //Needs dispose (entitiesThatNeedConnection)
         NativeArray<Entity> entitiesThatNeedConnection = GetEntityQuery(typeof(NeedsConnection)).ToEntityArray(Allocator.TempJob);
 
         Dependency = new UpdateConnectionsJob{ translationData = translationData, nodeData = nodeData, ecb = ecbSystem.CreateCommandBuffer().AsParallelWriter() }.ScheduleParallel(Dependency);
@@ -111,6 +114,7 @@ public partial class NodeConnectionSystem : SystemBase
 
         Dependency = new ConnectToBorderJob { entitiesThatNeedConnection = entitiesThatNeedConnection, needsConnectionData = needsConnectionData }.ScheduleParallel(Dependency);
 
+        //Gets disposed (entitiesThatNeedConnection)
         Dependency = entitiesThatNeedConnection.Dispose(Dependency);
 
         Dependency = new RemoveNeedsConnectionJob { ecb = ecbSystem.CreateCommandBuffer().AsParallelWriter() }.ScheduleParallel(Dependency);

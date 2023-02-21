@@ -99,12 +99,6 @@ public partial struct RemoveDeadNodesJob: IJobEntity
 
 public partial class NodeSystem : SystemBase
 {
-    private JobHandle updateNodeVelocities;
-    private JobHandle disposeStationsArray;
-    private JobHandle renderNodes;
-    private JobHandle updateGridNodePositions;
-    private JobHandle removeDeadNodes;
-
     private EndSimulationEntityCommandBufferSystem ecbSystem;
 
     protected override void OnCreate()
@@ -121,23 +115,20 @@ public partial class NodeSystem : SystemBase
         ComponentDataFromEntity<Station> stationData = GetComponentDataFromEntity<Station>();
         ComponentDataFromEntity<GridNode> nodeData = GetComponentDataFromEntity<GridNode>();
 
+        //Needs dispose (stations)
         NativeArray<Entity> stations = GetEntityQuery(typeof(Station), typeof(Translation)).ToEntityArray(Allocator.TempJob);
 
-        updateNodeVelocities = new UpdateNodeVelocitiesJob { stationEntities = stations, translationData = translationData, stationData = stationData }.ScheduleParallel(Dependency);
-        Dependency = updateNodeVelocities;
+        Dependency = new UpdateNodeVelocitiesJob { stationEntities = stations, translationData = translationData, stationData = stationData }.ScheduleParallel(Dependency);
 
-        disposeStationsArray = stations.Dispose(Dependency);
-        Dependency = disposeStationsArray;
+        //Gets disposed (stations)
+        Dependency = stations.Dispose(Dependency);
 
-        renderNodes = new RenderNodesJob().ScheduleParallel(Dependency);
-        Dependency = renderNodes;
+        Dependency = new RenderNodesJob().ScheduleParallel(Dependency);
 
-        updateGridNodePositions = new UpdateNodePositionsJob().ScheduleParallel(Dependency);
-        Dependency = updateGridNodePositions;
+        Dependency = new UpdateNodePositionsJob().ScheduleParallel(Dependency);
 
-        removeDeadNodes = new RemoveDeadNodesJob { ecb = ecbSystem.CreateCommandBuffer().AsParallelWriter() }.ScheduleParallel(Dependency);
-        ecbSystem.AddJobHandleForProducer(removeDeadNodes);
-        Dependency = removeDeadNodes;
+        Dependency = new RemoveDeadNodesJob { ecb = ecbSystem.CreateCommandBuffer().AsParallelWriter() }.ScheduleParallel(Dependency);
+        ecbSystem.AddJobHandleForProducer(Dependency);
     }
 
 }
