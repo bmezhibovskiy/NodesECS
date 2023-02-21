@@ -15,7 +15,7 @@ public struct GridNode : IComponentData
 }
 
 [BurstCompile]
-public partial struct UpdateNodeVelocitiesJob: IJobEntity
+public partial struct UpdateNodesWithStationsJob: IJobEntity
 {
     [ReadOnly] public NativeArray<Entity> stationEntities;
     [ReadOnly] public ComponentDataFromEntity<Translation> translationData;
@@ -23,38 +23,54 @@ public partial struct UpdateNodeVelocitiesJob: IJobEntity
     void Execute(ref GridNode gridNode, in Entity e)
     {
         if (gridNode.isBorder) { return; }
+
         float3 nodePos = translationData[e].Value;
+
         gridNode.velocity = float3.zero;
         for (int i = 0; i < stationEntities.Length; ++i)
         {
-            Translation sTranslation = translationData[stationEntities[i]];
+            float3 stationPos = translationData[stationEntities[i]].Value;
             Station station = stationData[stationEntities[i]];
-            float distSq = math.distancesq(nodePos, sTranslation.Value);
-            if (distSq < station.size * station.size)
+
+            for (int j = 0; j < station.modules.Count; ++j)
             {
-                gridNode.isDead = true;
-            }
-            else
-            {
-                gridNode.velocity += NodeVelocityAt(nodePos, sTranslation.Value);
+                StationModule sm = station.modules.Get(j);
+                switch (sm.type)
+                {
+                    //Only the NodePuller type affects nodes
+                    case StationModuleType.NodePuller:
+
+                        float distSq = math.distancesq(stationPos, nodePos);
+                        if (distSq < station.size * station.size)
+                        {
+                            gridNode.isDead = true;
+                            break;
+                        }
+
+                        float order = sm.GetParam(0);
+                        float pullStrength = sm.GetParam(1);
+                        float perpendicularStrength = sm.GetParam(2);
+
+                        float3 dir = stationPos - nodePos;
+                        float3 dir2 = math.cross(dir, new float3(0, 0, 1));
+                        //Inverse r squared law generalizes to inverse r^(dim-1)
+                        //However, we need to multiply denom by dir.magnitude to normalize dir
+                        //So that cancels with the fObj.dimension - 1, removing the - 1
+                        //However #2, dir.sqrMagnitude is cheaper, but will require bringing back the - 1
+                        float denom = math.pow(distSq, (order - 1f));
+                        gridNode.velocity += (pullStrength / denom) * dir + (perpendicularStrength / denom) * dir2;
+                        break;
+                    default:
+                        break;
+                }
+
             }
         }
     }
 
-    private static float3 NodeVelocityAt(float3 nodePosition, float3 sectorObjectPosition)
+    private static void UpdateNodeWithStation(ref GridNode gridNode, Station station, float3 nodePos, float3 stationPos)
     {
-        float order = 2f;
-        float perpendicularStrength = 0f;
-        float pullStrength = 0.01f;
-
-        float3 dir = sectorObjectPosition - nodePosition;
-        float3 dir2 = math.cross(dir, new float3(0, 0, 1));
-        //Inverse r squared law generalizes to inverse r^(dim-1)
-        //However, we need to multiply denom by dir.magnitude to normalize dir
-        //So that cancels with the fObj.dimension - 1, removing the - 1
-        //However #2, dir.sqrMagnitude is cheaper, but will require bringing back the - 1
-        float denom = Mathf.Pow(math.distancesq(sectorObjectPosition, nodePosition), (order - 1f));
-        return (pullStrength / denom) * dir + (perpendicularStrength / denom) * dir2;
+        
     }
 }
 
@@ -118,7 +134,7 @@ public partial class NodeSystem : SystemBase
         //Needs dispose (stations)
         NativeArray<Entity> stations = GetEntityQuery(typeof(Station), typeof(Translation)).ToEntityArray(Allocator.TempJob);
 
-        Dependency = new UpdateNodeVelocitiesJob { stationEntities = stations, translationData = translationData, stationData = stationData }.ScheduleParallel(Dependency);
+        Dependency = new UpdateNodesWithStationsJob { stationEntities = stations, translationData = translationData, stationData = stationData }.ScheduleParallel(Dependency);
 
         //Gets disposed (stations)
         Dependency = stations.Dispose(Dependency);

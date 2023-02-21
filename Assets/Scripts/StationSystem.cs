@@ -6,7 +6,7 @@ using Unity.Transforms;
 
 public enum StationModuleType
 {
-    None, Puller
+    None, NodePuller, ShipRepellent, Dock
 }
 
 public struct StationModule
@@ -21,7 +21,7 @@ public struct StationModule
         paramCount = 0
     };
 
-    StationModuleType type;
+    public StationModuleType type;
     float param1;
     float param2;
     float param3;

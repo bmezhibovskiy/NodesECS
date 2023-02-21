@@ -4,7 +4,6 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
-using UnityEditor.MemoryProfiler;
 using UnityEngine;
 
 public struct NeedsConnection: IComponentData
@@ -16,6 +15,23 @@ public struct NodeConnection : IComponentData
 {
     public Entity a;
     public Entity b;
+
+    public bool IsInvalid()
+    {
+        return a == Entity.Null || b == Entity.Null;
+    }
+
+    public void ReplaceNullEntity(Entity newEntity)
+    {
+        if(a == Entity.Null)
+        {
+            a = newEntity;
+        }
+        else if(b == Entity.Null)
+        {
+            b = newEntity;
+        }
+    }
 }
 
 [BurstCompile]
@@ -27,12 +43,12 @@ public partial struct UpdateConnectionsJob : IJobEntity
 
     void Execute(ref NodeConnection nc, in Entity e, [EntityInQueryIndex] int entityInQueryIndex)
     {
-        if(nc.a == Entity.Null || nc.b == Entity.Null) { return; }
+        if(nc.IsInvalid()) { return; }
 
         float3 posA = translationData[nc.a].Value;
         float3 posB = translationData[nc.b].Value;
 
-        Debug.DrawLine(posA, posB);
+        Debug.DrawLine(posA, posB, Color.gray);
 
         if (math.distancesq(posA, posB) > 1.8f * 1.8f)
         {
@@ -60,33 +76,20 @@ public partial struct ConnectToBorderJob : IJobEntity
 {
     [ReadOnly] public NativeArray<Entity> entitiesThatNeedConnection;
     [ReadOnly] public ComponentDataFromEntity<NeedsConnection> needsConnectionData;
+    public EntityCommandBuffer.ParallelWriter ecb;
 
-    void Execute(ref NodeConnection nc, Entity e)
+    void Execute(ref NodeConnection nc, Entity e, [EntityInQueryIndex] int entityInQueryIndex)
     {
         for(int i = 0; i < entitiesThatNeedConnection.Length; ++i)
         {
-            if (needsConnectionData[entitiesThatNeedConnection[i]].connection == e)
+            Entity candidate = entitiesThatNeedConnection[i];
+            if (needsConnectionData[candidate].connection == e)
             {
-                if(nc.a == Entity.Null)
-                {
-                    nc.a = entitiesThatNeedConnection[i];
-                }
-                else
-                {
-                    nc.b = entitiesThatNeedConnection[i];
-                }
+                nc.ReplaceNullEntity(candidate);
+                ecb.RemoveComponent<NeedsConnection>(entityInQueryIndex, candidate);
+                break;
             }
         }
-    }
-}
-
-[BurstCompile]
-public partial struct RemoveNeedsConnectionJob: IJobEntity
-{
-    public EntityCommandBuffer.ParallelWriter ecb;
-    void Execute(Entity e, [EntityInQueryIndex] int entityInQueryIndex)
-    {
-        ecb.RemoveComponent<NeedsConnection>(entityInQueryIndex, e);       
     }
 }
 
@@ -106,19 +109,16 @@ public partial class NodeConnectionSystem : SystemBase
         ComponentDataFromEntity<GridNode> nodeData = GetComponentDataFromEntity<GridNode>();
         ComponentDataFromEntity<NeedsConnection> needsConnectionData = GetComponentDataFromEntity<NeedsConnection>();
 
-        //Needs dispose (entitiesThatNeedConnection)
-        NativeArray<Entity> entitiesThatNeedConnection = GetEntityQuery(typeof(NeedsConnection)).ToEntityArray(Allocator.TempJob);
-
         Dependency = new UpdateConnectionsJob{ translationData = translationData, nodeData = nodeData, ecb = ecbSystem.CreateCommandBuffer().AsParallelWriter() }.ScheduleParallel(Dependency);
         ecbSystem.AddJobHandleForProducer(Dependency);
 
-        Dependency = new ConnectToBorderJob { entitiesThatNeedConnection = entitiesThatNeedConnection, needsConnectionData = needsConnectionData }.ScheduleParallel(Dependency);
+        //Needs dispose (entitiesThatNeedConnection)
+        NativeArray<Entity> entitiesThatNeedConnection = GetEntityQuery(typeof(NeedsConnection)).ToEntityArray(Allocator.TempJob);
+
+        Dependency = new ConnectToBorderJob { entitiesThatNeedConnection = entitiesThatNeedConnection, needsConnectionData = needsConnectionData, ecb = ecbSystem.CreateCommandBuffer().AsParallelWriter() }.ScheduleParallel(Dependency);
+        ecbSystem.AddJobHandleForProducer(Dependency);
 
         //Gets disposed (entitiesThatNeedConnection)
         Dependency = entitiesThatNeedConnection.Dispose(Dependency);
-
-        Dependency = new RemoveNeedsConnectionJob { ecb = ecbSystem.CreateCommandBuffer().AsParallelWriter() }.ScheduleParallel(Dependency);
-        ecbSystem.AddJobHandleForProducer(Dependency);
-        
     }
 }
