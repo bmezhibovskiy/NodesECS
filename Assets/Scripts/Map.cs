@@ -41,6 +41,4 @@ public class Map : MonoBehaviour
         sectorComponent.Initialize(sectorInfo, mainCamera);
         currentSector = newSector;
     }
-
-
 }

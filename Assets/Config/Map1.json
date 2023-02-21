@@ -39,7 +39,7 @@
 
 						{
 							"type": "NodePuller",
-							"parameters": [ 2, 0.01, 0.0 ]
+							"parameters": [ 2, 0.0, 0.001 ]
 						}
 					]
 				}

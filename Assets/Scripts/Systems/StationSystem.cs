@@ -1,8 +1,10 @@
 using UnityEngine;
+using Unity.Collections;
 using Unity.Entities;
 using Unity.Burst;
 using Unity.Assertions;
 using Unity.Transforms;
+using Unity.VisualScripting;
 
 public enum StationModuleType
 {
@@ -113,7 +115,7 @@ public struct StationModules
 
 public struct Station: IComponentData
 {
-    //public string displayName;
+    public FixedString128Bytes displayName;
     public float size;
     public int factionIndex;
     public StationModules modules;
@@ -124,6 +126,7 @@ public partial struct RenderStationsJob: IJobEntity
 {
     void Execute(in Station s, in Translation t)
     {
+        //Debug.Log($"Station: [{ s.displayName}]");
         Utils.DebugDrawCircle(t.Value, s.size, Color.white, 20);
     }
 }
@@ -133,6 +136,6 @@ public partial class StationSystem : SystemBase
     [BurstCompile]
     protected override void OnUpdate()
     {
-        Dependency = new RenderStationsJob().ScheduleParallel(Dependency);
+        Dependency = new RenderStationsJob().ScheduleParallel(Dependency);   
     }
 }

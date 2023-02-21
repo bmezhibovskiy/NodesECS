@@ -276,8 +276,10 @@ public partial struct RenderShipsJob : IJobEntity
 {
     void Execute(in Ship ship, in Translation translation)
     {
-        Debug.DrawRay(translation.Value, ship.facing, UnityEngine.Color.green);
-        Debug.DrawRay(translation.Value, ship.vel * 60f, UnityEngine.Color.red);
+        float3 shipPos = translation.Value;
+        Debug.DrawRay(shipPos, ship.facing, Color.green);
+        Debug.DrawRay(shipPos, ship.vel * 60f, Color.red);
+        Utils.DebugDrawCircle(shipPos, ship.size, Color.green, 10);
     }
 }
 public partial class ShipSystem : SystemBase

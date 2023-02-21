@@ -3,7 +3,6 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using Unity.Collections;
-using Unity.VisualScripting;
 
 public class Sector : MonoBehaviour
 {
@@ -31,6 +30,7 @@ public class Sector : MonoBehaviour
 
     public void Initialize(SectorInfo info, Camera mainCamera)
     {
+        this.displayName = info.name;
         this.is3d = info.is3d;
         this.sideLength = info.sideLength;
         this.numSideNodes = info.sideNodes;
@@ -50,8 +50,7 @@ public class Sector : MonoBehaviour
         GenerateConnections();
         foreach(SectorObjectInfo soi in info.sectorObjectInfos)
         {
-            //TODO: Deal with name
-            AddSectorObject(soi.position, soi.size, soi.factionIndex, soi.moduleInfos);
+            AddSectorObject(soi.name, soi.position, soi.size, soi.factionIndex, soi.moduleInfos);
         }
         this.playerEntity = AddShip(this.startPos, true);
     }
@@ -60,6 +59,13 @@ public class Sector : MonoBehaviour
     {
         Vector3 shipPos = em.GetComponentData<Translation>(playerEntity).Value;
         mainCamera.transform.position = new Vector3(shipPos.x, shipPos.y, mainCamera.transform.position.z);
+
+
+    }
+
+    void OnGUI()
+    {
+        GUI.Label(new Rect(10, 10, 100, 20), "Hello World!");
     }
 
     private void GenerateNodes()
@@ -149,7 +155,7 @@ public class Sector : MonoBehaviour
         em.AddComponentData(e, new GridNode { velocity = float3.zero, isDead = false, isBorder = isBorder });
     }
 
-    private void AddSectorObject(float3 pos, float size, int factionIndex, SectorObjectModuleInfo[] moduleInfos)
+    private void AddSectorObject(string name, float3 pos, float size, int factionIndex, SectorObjectModuleInfo[] moduleInfos)
     {
         EntityArchetype ea = em.CreateArchetype(typeof(Translation), typeof(Station));
         Entity e = em.CreateEntity(ea);
@@ -165,7 +171,7 @@ public class Sector : MonoBehaviour
             }
             modules.Add(module);
         }
-        em.AddComponentData(e, new Station { size = size, factionIndex = factionIndex, modules = modules });
+        em.AddComponentData(e, new Station { displayName = new FixedString128Bytes(name), size = size, factionIndex = factionIndex, modules = modules });
     }
 
     private StationModuleType StationModuleTypeFromString(string str)
@@ -192,6 +198,7 @@ public class Sector : MonoBehaviour
         em.AddComponentData(e, new Translation { Value = pos });
         em.AddComponentData(e, new Ship
         {
+            size = 0.25f,
             closestNodes = ClosestNodes.empty,
             nodeOffset = float3.zero,
             prevPos = pos,
