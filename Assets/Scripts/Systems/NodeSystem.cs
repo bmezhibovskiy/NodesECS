@@ -29,24 +29,16 @@ public partial struct UpdateNodesWithStationsJob: IJobEntity
         gridNode.velocity = float3.zero;
         for (int i = 0; i < stationEntities.Length; ++i)
         {
-            float3 stationPos = translationData[stationEntities[i]].Value;
             Station station = stationData[stationEntities[i]];
+            float3 stationPos = translationData[stationEntities[i]].Value;
+            float distSq = math.distancesq(stationPos, nodePos);
 
             for (int j = 0; j < station.modules.Count; ++j)
             {
                 StationModule sm = station.modules.Get(j);
                 switch (sm.type)
                 {
-                    //Only the NodePuller type affects nodes
                     case StationModuleType.NodePuller:
-
-                        float distSq = math.distancesq(stationPos, nodePos);
-                        if (distSq < station.size * station.size)
-                        {
-                            gridNode.isDead = true;
-                            break;
-                        }
-
                         float order = sm.GetParam(0);
                         float pullStrength = sm.GetParam(1);
                         float perpendicularStrength = sm.GetParam(2);
@@ -59,6 +51,13 @@ public partial struct UpdateNodesWithStationsJob: IJobEntity
                         //However #2, dir.sqrMagnitude is cheaper, but will require bringing back the - 1
                         float denom = math.pow(distSq, (order - 1f));
                         gridNode.velocity += (pullStrength / denom) * dir + (perpendicularStrength / denom) * dir2;
+                        break;
+                    case StationModuleType.NodeEater:
+                        if (distSq < station.size * station.size)
+                        {
+                            gridNode.isDead = true;
+                            break;
+                        }
                         break;
                     default:
                         break;

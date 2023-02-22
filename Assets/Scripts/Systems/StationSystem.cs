@@ -2,13 +2,11 @@ using UnityEngine;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Burst;
-using Unity.Assertions;
 using Unity.Transforms;
-using Unity.VisualScripting;
 
 public enum StationModuleType
 {
-    None, NodePuller, ShipRepellent, Dock
+    None, NodePuller, NodeEater, ShipRepellent, Dock
 }
 
 public struct StationModule

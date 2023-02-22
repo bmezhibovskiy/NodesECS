@@ -180,6 +180,8 @@ public class Sector : MonoBehaviour
         {
             case "NodePuller":
                 return StationModuleType.NodePuller;
+            case "NodeEater":
+                return StationModuleType.NodeEater;
             case "ShipRepellent":
                 return StationModuleType.ShipRepellent;
             case "Dock":

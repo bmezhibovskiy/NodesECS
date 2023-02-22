@@ -21,7 +21,11 @@
 					[
 						{
 							"type": "NodePuller",
-							"parameters": [2, 0.01, 0.0]
+							"parameters": [ 2, 0.01, 0.0 ]
+						},
+						{
+							"type": "NodeEater",
+							"parameters": []
 						}
 					]
 				},
@@ -30,16 +34,14 @@
 					"position": {"x": -6.0, "y": -5.0, "z": 0.0},
 					"size": 0.6,
 					"factionIndex": 0,
-					"moduleInfos":
-					[
+					"moduleInfos": [
 						{
 							"type": "Dock",
 							"parameters": [ 0.4, 0.05, 12.0 ]
 						},
-
 						{
-							"type": "NodePuller",
-							"parameters": [ 2, 0.0, 0.001 ]
+							"type": "NodeEater",
+							"parameters": []
 						}
 					]
 				}

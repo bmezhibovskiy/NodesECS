@@ -1,49 +1,32 @@
 using UnityEngine;
-using Unity.Entities;
-using Unity.Mathematics;
-using Unity.Transforms;
 using Unity.Burst;
 using System.Collections.Generic;
-using Unity.Collections;
 
 public static class Globals
 {
     public readonly static SharedStatic<InputState> sharedInputState = SharedStatic<InputState>.GetOrCreate<InputStateKey>();
-    public readonly static SharedStatic<TimeState> sharedTimeState = SharedStatic<TimeState>.GetOrCreate<TimeStateKey>();
     private class InputStateKey { }
-    private class TimeStateKey { }
 
     static Globals()
     {
         sharedInputState.Data.Initialize();
-        sharedTimeState.Data.Initialize();
-    }
-}
-public struct TimeState
-{
-    public float deltaTime;
-    public void Initialize()
-    {
-        deltaTime = 0.0167f;
     }
 }
 
 public struct InputState
 {
-    public bool isSpaceDown;
-    public bool isIKeyDown;
-    public bool isUpKeyDown;
-    public bool isDownKeyDown;
-    public bool isLeftKeyDown;
-    public bool isRightKeyDown;
+    public bool AfterburnerKeyDown;
+    public bool ForwardThrustKeyDown;
+    public bool ReverseThrustKeyDown;
+    public bool RotateLeftKeyDown;
+    public bool RotateRightKeyDown;
     public void Initialize()
     {
-        isSpaceDown = false;
-        isIKeyDown = false;
-        isUpKeyDown = false;
-        isDownKeyDown = false;
-        isLeftKeyDown = false;
-        isRightKeyDown = false;
+        AfterburnerKeyDown = false;
+        ForwardThrustKeyDown = false;
+        ReverseThrustKeyDown = false;
+        RotateLeftKeyDown = false;
+        RotateRightKeyDown = false;
     }
 }
 
@@ -65,8 +48,6 @@ public class GameManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        Globals.sharedTimeState.Data.deltaTime = Time.deltaTime;
- 
         UpdateInput();
 
         UpdateFPSCounter();
@@ -74,12 +55,11 @@ public class GameManager : MonoBehaviour
 
     private void UpdateInput()
     {
-        Globals.sharedInputState.Data.isSpaceDown = Input.GetKey(KeyCode.Space);
-        Globals.sharedInputState.Data.isIKeyDown = Input.GetKey(KeyCode.I);
-        Globals.sharedInputState.Data.isUpKeyDown = Input.GetKey(KeyCode.UpArrow);
-        Globals.sharedInputState.Data.isDownKeyDown = Input.GetKey(KeyCode.DownArrow);
-        Globals.sharedInputState.Data.isLeftKeyDown = Input.GetKey(KeyCode.LeftArrow);
-        Globals.sharedInputState.Data.isRightKeyDown = Input.GetKey(KeyCode.RightArrow);
+        Globals.sharedInputState.Data.AfterburnerKeyDown = Input.GetKey(KeyCode.Space);
+        Globals.sharedInputState.Data.ForwardThrustKeyDown = Input.GetKey(KeyCode.UpArrow);
+        Globals.sharedInputState.Data.ReverseThrustKeyDown = Input.GetKey(KeyCode.DownArrow);
+        Globals.sharedInputState.Data.RotateLeftKeyDown = Input.GetKey(KeyCode.LeftArrow);
+        Globals.sharedInputState.Data.RotateRightKeyDown = Input.GetKey(KeyCode.RightArrow);
     }
 
 

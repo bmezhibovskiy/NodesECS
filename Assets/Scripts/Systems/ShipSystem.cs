@@ -1,5 +1,6 @@
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Core;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -187,28 +188,29 @@ public partial struct FindClosestNodesJob : IJobEntity
 [BurstCompile]
 public partial struct UpdatePlayerShipJob: IJobEntity
 {
+    [ReadOnly] public TimeData timeData; 
     void Execute(ref Ship ship, Player p)
     {
-        float dt = Globals.sharedTimeState.Data.deltaTime;
+        float dt = timeData.DeltaTime;
         float rspeed = 2f * dt;
         float fspeed = 2f;
-        if (Globals.sharedInputState.Data.isLeftKeyDown)
+        if (Globals.sharedInputState.Data.RotateLeftKeyDown)
         {
             ship.Rotate(rspeed);
         }
-        if (Globals.sharedInputState.Data.isRightKeyDown)
+        if (Globals.sharedInputState.Data.RotateRightKeyDown)
         {
             ship.Rotate(-rspeed);
         }
-        if (Globals.sharedInputState.Data.isUpKeyDown)
+        if (Globals.sharedInputState.Data.ForwardThrustKeyDown)
         {
             ship.AddThrust(fspeed);
         }
-        if (Globals.sharedInputState.Data.isDownKeyDown)
+        if (Globals.sharedInputState.Data.ReverseThrustKeyDown)
         {
             ship.AddThrust(-fspeed);
         }
-        if (Globals.sharedInputState.Data.isSpaceDown)
+        if (Globals.sharedInputState.Data.AfterburnerKeyDown)
         {
             ship.AddThrust(fspeed * 2.0f);
         }
@@ -249,10 +251,11 @@ public partial struct UpdateShipsWithStationsJob: IJobEntity
 [BurstCompile]
 public partial struct IntegrateShipsJob: IJobEntity
 {
+    [ReadOnly] public TimeData timeData;
     [ReadOnly] public ComponentDataFromEntity<Translation> translationData;
     void Execute(ref Ship ship)
     {
-        float dt = Globals.sharedTimeState.Data.deltaTime;
+        float dt = timeData.DeltaTime;
         float3 shipPos = ship.nextPos;
         float3 current = shipPos + (ship.GridPosition(translationData) - shipPos) * dt;
         ship.nextPos = 2 * current - ship.prevPos + ship.accel * (dt * dt);
@@ -290,7 +293,7 @@ public partial class ShipSystem : SystemBase
     {
         ComponentDataFromEntity<Translation> translationData = GetComponentDataFromEntity<Translation>();
 
-        Dependency = new UpdatePlayerShipJob().ScheduleParallel(Dependency);
+        Dependency = new UpdatePlayerShipJob { timeData = Time }.ScheduleParallel(Dependency);
 
         ComponentDataFromEntity<Station> stationData = GetComponentDataFromEntity<Station>();
 
@@ -302,7 +305,7 @@ public partial class ShipSystem : SystemBase
         //Gets disposed (stationEntities)
         Dependency = stationEntities.Dispose(Dependency);
 
-        Dependency = new IntegrateShipsJob { translationData = translationData }.ScheduleParallel(Dependency);
+        Dependency = new IntegrateShipsJob { timeData = Time, translationData = translationData }.ScheduleParallel(Dependency);
 
         Dependency = new UpdateShipPositionsJob().ScheduleParallel(Dependency);
 
