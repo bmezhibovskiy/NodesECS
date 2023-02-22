@@ -184,6 +184,8 @@ public class Sector : MonoBehaviour
                 return StationModuleType.NodeEater;
             case "ShipRepellent":
                 return StationModuleType.ShipRepellent;
+            case "ShipSphereCollider":
+                return StationModuleType.ShipSphereCollider;
             case "Dock":
                 return StationModuleType.Dock;
         }
@@ -207,7 +209,9 @@ public class Sector : MonoBehaviour
             nextPos = pos,
             facing = new float3(0, 1, 0),
             accel = float3.zero,
-            vel = float3.zero
+            vel = float3.zero,
+            dockedAt = Entity.Null,
+            isUndocking = false
         });
         if (isPlayer)
         {

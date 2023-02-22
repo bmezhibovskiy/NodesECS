@@ -6,6 +6,8 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
+using static Unity.Properties.PropertyPath;
+using UnityEngine.UIElements;
 
 public struct ClosestNodes
 {
@@ -69,6 +71,9 @@ public struct Ship : IComponentData
     public float3 facing;
     public float3 accel;
     public float3 vel;//derived from translation and prevPos
+
+    public Entity dockedAt;
+    public bool isUndocking;
 
     public void Rotate(float speed)
     {
@@ -194,25 +199,35 @@ public partial struct UpdatePlayerShipJob: IJobEntity
         float dt = timeData.DeltaTime;
         float rspeed = 2f * dt;
         float fspeed = 2f;
-        if (Globals.sharedInputState.Data.RotateLeftKeyDown)
+        if (ship.dockedAt == Entity.Null)
         {
-            ship.Rotate(rspeed);
-        }
-        if (Globals.sharedInputState.Data.RotateRightKeyDown)
-        {
-            ship.Rotate(-rspeed);
-        }
-        if (Globals.sharedInputState.Data.ForwardThrustKeyDown)
-        {
-            ship.AddThrust(fspeed);
-        }
-        if (Globals.sharedInputState.Data.ReverseThrustKeyDown)
-        {
-            ship.AddThrust(-fspeed);
+            if (Globals.sharedInputState.Data.RotateLeftKeyDown)
+            {
+                ship.Rotate(rspeed);
+            }
+            if (Globals.sharedInputState.Data.RotateRightKeyDown)
+            {
+                ship.Rotate(-rspeed);
+            }
+            if (Globals.sharedInputState.Data.ForwardThrustKeyDown)
+            {
+                ship.AddThrust(fspeed);
+            }
+            if (Globals.sharedInputState.Data.ReverseThrustKeyDown)
+            {
+                ship.AddThrust(-fspeed);
+            }
         }
         if (Globals.sharedInputState.Data.AfterburnerKeyDown)
         {
-            ship.AddThrust(fspeed * 2.0f);
+            if (ship.dockedAt == Entity.Null)
+            {
+                ship.AddThrust(fspeed * 2.0f);
+            }
+            else
+            {
+                ship.isUndocking = true;
+            }
         }
     }
 }
@@ -220,29 +235,97 @@ public partial struct UpdatePlayerShipJob: IJobEntity
 [BurstCompile]
 public partial struct UpdateShipsWithStationsJob: IJobEntity
 {
-    [ReadOnly] public NativeArray<Entity> stations;
+    [ReadOnly] public NativeArray<Entity> stationEntities;
     [ReadOnly] public ComponentDataFromEntity<Translation> translationData;
     [ReadOnly] public ComponentDataFromEntity<Station> stationData;
+    [ReadOnly] public TimeData timeData;
 
     void Execute(ref Ship ship)
     {
         float3 shipPos = ship.nextPos;
-        for(int i = 0; i < stations.Length; ++i)
+        float dt = timeData.DeltaTime;
+        float dt2 = dt * dt;
+        for(int i = 0; i < stationEntities.Length; ++i)
         {
-            Station station = stationData[stations[i]];
-            float3 stationPos = translationData[stations[i]].Value;
-            if (math.distance(shipPos, stationPos) < station.size + ship.size)
-            {
-                float3? intersection = Utils.LineSegmentCircleIntersection(stationPos, station.size + ship.size, ship.prevPos, shipPos);
-                if (intersection != null)
-                {
-                    ship.HandleCollisionAt(intersection.Value, math.normalize(intersection.Value - stationPos));
-                }
-            }
+            Entity stationEntity = stationEntities[i];
+            Station station = stationData[stationEntity];
+            float3 stationPos = translationData[stationEntity].Value;
 
-            for(int j = 0; j < station.modules.Count; ++j)
+            for (int j = 0; j < station.modules.Count; ++j)
             {
-                //update the ship for every module
+                StationModule sm = station.modules.Get(j);
+                switch (sm.type)
+                {
+                    case StationModuleType.ShipSphereCollider:
+                        float size = sm.GetParam(0);
+                        if (math.distance(shipPos, stationPos) < size + ship.size)
+                        {
+                            float3? intersection = Utils.LineSegmentCircleIntersection(stationPos, size + ship.size, ship.prevPos, shipPos);
+                            if (intersection != null)
+                            {
+                                float bounciness = sm.GetParam(1);
+                                ship.HandleCollisionAt(intersection.Value, math.normalize(intersection.Value - stationPos), bounciness);
+                            }
+                        }
+                        break;
+                    case StationModuleType.ShipRepellent:
+                        float order = sm.GetParam(0);
+                        float pullStrength = sm.GetParam(1);
+                        float perpendicularStrength = sm.GetParam(2);
+
+                        float3 dir = shipPos - stationPos;
+                        float3 dir2 = math.cross(dir, new float3(0,0,1));
+                        //Inverse r squared law generalizes to inverse r^(dim-1)
+                        //However, we need to multiply denom by dir.magnitude to normalize dir
+                        //So that cancels with the fObj.dimension - 1, removing the - 1
+                        //However #2, dir.sqrMagnitude is cheaper, but will require bringing back the - 1
+                        float denom = math.pow(math.distancesq(shipPos, stationPos), (order - 1f));
+                        ship.accel += (pullStrength / denom) * dir + (perpendicularStrength / denom) * dir2;
+                        break;
+                    case StationModuleType.Dock:
+                        float maxDockingSpeed = sm.GetParam(0);
+                        float sqrMaxDockingSpeed = maxDockingSpeed * maxDockingSpeed;
+                        float dockDistance = sm.GetParam(1);
+                        float undockDistance = dockDistance * 1.1f;
+                        float undockThrust = sm.GetParam(2);
+
+                        if (ship.dockedAt == Entity.Null && math.distancesq(ship.vel, float3.zero) / dt2 < sqrMaxDockingSpeed)
+                        {
+                            if (Vector3.Distance(shipPos, stationPos) < station.size + ship.size + undockDistance)
+                            {
+                                
+                                    ship.isUndocking = false;
+                                    ship.dockedAt = stationEntity;
+                                    ship.prevPos = shipPos;
+                                    ship.nextPos = shipPos;
+                                    ship.accel = Vector3.zero;
+                                    ship.vel = Vector3.zero;
+
+                                    ship.facing = math.normalize(shipPos - stationPos);
+                                
+                            }
+                        }
+
+                        if (ship.isUndocking && ship.dockedAt == stationEntity)
+                        {
+                            Vector3 dist = shipPos - stationPos;
+                            ship.facing = dist.normalized;
+                            if (dist.magnitude < station.size + ship.size + undockDistance)
+                            {
+                                ship.AddThrust(undockThrust);
+                            }
+                            else
+                            {
+                                ship.dockedAt = Entity.Null;
+                                ship.isUndocking = false;
+                            }
+                        }
+
+
+                        break;
+                    default:
+                        break;
+                }
             }
         }
     }
@@ -255,6 +338,8 @@ public partial struct IntegrateShipsJob: IJobEntity
     [ReadOnly] public ComponentDataFromEntity<Translation> translationData;
     void Execute(ref Ship ship)
     {
+        if(ship.dockedAt != Entity.Null && !ship.isUndocking) { return; }
+
         float dt = timeData.DeltaTime;
         float3 shipPos = ship.nextPos;
         float3 current = shipPos + (ship.GridPosition(translationData) - shipPos) * dt;
@@ -282,7 +367,8 @@ public partial struct RenderShipsJob : IJobEntity
         float3 shipPos = translation.Value;
         Debug.DrawRay(shipPos, ship.facing, Color.green);
         Debug.DrawRay(shipPos, ship.vel * 60f, Color.red);
-        Utils.DebugDrawCircle(shipPos, ship.size, Color.green, 10);
+        Color c = ship.dockedAt == Entity.Null ? Color.green : Color.blue;
+        Utils.DebugDrawCircle(shipPos, ship.size, c, 10);
     }
 }
 public partial class ShipSystem : SystemBase
@@ -300,7 +386,7 @@ public partial class ShipSystem : SystemBase
         //Needs dispose (stationEntities)
         NativeArray<Entity> stationEntities = GetEntityQuery(typeof(Station), typeof(Translation)).ToEntityArray(Allocator.TempJob);
 
-        Dependency = new UpdateShipsWithStationsJob { stations = stationEntities, stationData = stationData, translationData = translationData }.ScheduleParallel(Dependency);
+        Dependency = new UpdateShipsWithStationsJob { stationEntities = stationEntities, stationData = stationData, translationData = translationData, timeData = Time }.ScheduleParallel(Dependency);
 
         //Gets disposed (stationEntities)
         Dependency = stationEntities.Dispose(Dependency);

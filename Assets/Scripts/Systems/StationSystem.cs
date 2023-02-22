@@ -6,7 +6,7 @@ using Unity.Transforms;
 
 public enum StationModuleType
 {
-    None, NodePuller, NodeEater, ShipRepellent, Dock
+    None, NodePuller, NodeEater, ShipSphereCollider, ShipRepellent, Dock
 }
 
 public struct StationModule

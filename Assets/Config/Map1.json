@@ -17,8 +17,7 @@
 					"position": {"x": 4.0, "y": 2.0, "z": 0.0},
 					"size": 0.9,
 					"factionIndex": 0,
-					"moduleInfos":
-					[
+					"moduleInfos": [
 						{
 							"type": "NodePuller",
 							"parameters": [ 2, 0.01, 0.0 ]
@@ -26,6 +25,10 @@
 						{
 							"type": "NodeEater",
 							"parameters": []
+						},
+						{
+							"type": "ShipRepellent",
+							"parameters": [ 4.0, 200.0, 0.0 ]
 						}
 					]
 				},
@@ -40,8 +43,8 @@
 							"parameters": [ 0.4, 0.05, 12.0 ]
 						},
 						{
-							"type": "NodeEater",
-							"parameters": []
+							"type": "ShipSphereCollider",
+							"parameters": [ 0.6, 0.5 ]
 						}
 					]
 				}
