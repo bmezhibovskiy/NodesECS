@@ -250,6 +250,9 @@ public partial struct UpdateShipsWithStationsJob: IJobEntity
             Entity stationEntity = stationEntities[i];
             Station station = stationData[stationEntity];
             float3 stationPos = translationData[stationEntity].Value;
+            float distSq = math.distancesq(shipPos, stationPos);
+            float3 dir = shipPos - stationPos;
+            float3 normalizedDir = math.normalize(dir);
 
             for (int j = 0; j < station.modules.Count; ++j)
             {
@@ -258,9 +261,10 @@ public partial struct UpdateShipsWithStationsJob: IJobEntity
                 {
                     case StationModuleType.ShipSphereCollider:
                         float size = sm.GetParam(0);
-                        if (math.distance(shipPos, stationPos) < size + ship.size)
+                        float totalCollisionSize = size + ship.size;
+                        if (distSq < totalCollisionSize * totalCollisionSize)
                         {
-                            float3? intersection = Utils.LineSegmentCircleIntersection(stationPos, size + ship.size, ship.prevPos, shipPos);
+                            float3? intersection = Utils.LineSegmentCircleIntersection(stationPos, totalCollisionSize, ship.prevPos, shipPos);
                             if (intersection != null)
                             {
                                 float bounciness = sm.GetParam(1);
@@ -273,13 +277,12 @@ public partial struct UpdateShipsWithStationsJob: IJobEntity
                         float pullStrength = sm.GetParam(1);
                         float perpendicularStrength = sm.GetParam(2);
 
-                        float3 dir = shipPos - stationPos;
                         float3 dir2 = math.cross(dir, new float3(0,0,1));
                         //Inverse r squared law generalizes to inverse r^(dim-1)
                         //However, we need to multiply denom by dir.magnitude to normalize dir
                         //So that cancels with the fObj.dimension - 1, removing the - 1
                         //However #2, dir.sqrMagnitude is cheaper, but will require bringing back the - 1
-                        float denom = math.pow(math.distancesq(shipPos, stationPos), (order - 1f));
+                        float denom = math.pow(distSq, (order - 1f));
                         ship.accel += (pullStrength / denom) * dir + (perpendicularStrength / denom) * dir2;
                         break;
                     case StationModuleType.Dock:
@@ -288,29 +291,25 @@ public partial struct UpdateShipsWithStationsJob: IJobEntity
                         float dockDistance = sm.GetParam(1);
                         float undockDistance = dockDistance * 1.1f;
                         float undockThrust = sm.GetParam(2);
+                        float totalUndockSize = station.size + ship.size + undockDistance;
 
                         if (ship.dockedAt == Entity.Null && math.distancesq(ship.vel, float3.zero) / dt2 < sqrMaxDockingSpeed)
                         {
-                            if (Vector3.Distance(shipPos, stationPos) < station.size + ship.size + undockDistance)
-                            {
-                                
-                                    ship.isUndocking = false;
-                                    ship.dockedAt = stationEntity;
-                                    ship.prevPos = shipPos;
-                                    ship.nextPos = shipPos;
-                                    ship.accel = Vector3.zero;
-                                    ship.vel = Vector3.zero;
-
-                                    ship.facing = math.normalize(shipPos - stationPos);
-                                
+                            if (distSq < totalUndockSize * totalUndockSize)
+                            {   
+                                ship.isUndocking = false;
+                                ship.dockedAt = stationEntity;
+                                ship.prevPos = shipPos;
+                                ship.nextPos = shipPos;
+                                ship.accel = float3.zero;
+                                ship.vel = float3.zero;
+                                ship.facing = normalizedDir;
                             }
                         }
-
-                        if (ship.isUndocking && ship.dockedAt == stationEntity)
+                        else if (ship.isUndocking && ship.dockedAt == stationEntity)
                         {
-                            Vector3 dist = shipPos - stationPos;
-                            ship.facing = dist.normalized;
-                            if (dist.magnitude < station.size + ship.size + undockDistance)
+                            ship.facing = normalizedDir;
+                            if (distSq < totalUndockSize * totalUndockSize)
                             {
                                 ship.AddThrust(undockThrust);
                             }
@@ -320,8 +319,6 @@ public partial struct UpdateShipsWithStationsJob: IJobEntity
                                 ship.isUndocking = false;
                             }
                         }
-
-
                         break;
                     default:
                         break;
