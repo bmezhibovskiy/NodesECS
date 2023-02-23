@@ -86,7 +86,7 @@ public class GameManager : MonoBehaviour
         GUIStyle style = GUI.skin.label;
         style.fontSize = 6;
         Vector3 camPos = mainCamera.transform.position;
-        Vector3 labelPos = new Vector3(camPos.x - 4.3f, camPos.y - 4.4f, 0);
+        Vector3 labelPos = new Vector3(camPos.x - 2.3f, camPos.y - 2.4f, 0);
         UnityEditor.Handles.Label(labelPos, "FPS: " + (int)(fps), style);
     }
 }

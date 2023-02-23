@@ -127,7 +127,7 @@ public struct SpatialHasher
         bucketCounts[hash] = oldLastEntityIndex;
     }
 
-    public NativeArray<Entity> ClosestNodes(float3 point, int numberOfObjectsToFetch, ComponentDataFromEntity<Translation> translationData)
+    public NativeArray<Entity> ClosestNodes(float3 point, int numberOfObjectsToFetch, ComponentLookup<LocalTransform> transformData)
     {
         NativeArray<Entity> closestObjects = new NativeArray<Entity>(numberOfObjectsToFetch, Allocator.Temp);
         int2 hashCoords = Utils.to2D(Hash(point), numSideBuckets);
@@ -158,7 +158,7 @@ public struct SpatialHasher
                 }
             }
             //Sort Shell entities
-            EntityComparerWithTD comparer = new EntityComparerWithTD { pos = point, translationData = translationData };
+            EntityComparerWithTD comparer = new EntityComparerWithTD { pos = point, transformData = transformData };
             shellEntities.Sort(comparer);
 
             //Copy Shell entities into closest entities

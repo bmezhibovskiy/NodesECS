@@ -1,20 +1,17 @@
 using System.Collections.Generic;
-using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
-using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
-using UnityEngine;
 
 public struct EntityComparerWithEM : IComparer<Entity>
 {
-    public EntityManager em;
-    public float3 pos;
+    [ReadOnly] public EntityManager em;
+    [ReadOnly] public float3 pos;
     public int Compare(Entity a, Entity b)
     {
-        float3 tA = em.GetComponentData<Translation>(a).Value;
-        float3 tB = em.GetComponentData<Translation>(b).Value;
+        float3 tA = em.GetComponentData<LocalTransform>(a).Position;
+        float3 tB = em.GetComponentData<LocalTransform>(b).Position;
         float distA = math.distancesq(tA, pos);
         float distB = math.distancesq(tB, pos);
         return distA.CompareTo(distB);
@@ -24,7 +21,7 @@ public struct EntityComparerWithEM : IComparer<Entity>
 public struct EntityComparerWithTD : IComparer<Entity>
 {
     [ReadOnly] public float3 pos;
-    [ReadOnly] public ComponentDataFromEntity<Translation> translationData;
+    [ReadOnly] public ComponentLookup<LocalTransform> transformData;
 
     public int Compare(Entity x, Entity y)
     {
@@ -32,8 +29,8 @@ public struct EntityComparerWithTD : IComparer<Entity>
         if (x == Entity.Null) { return 1; }
         if (y == Entity.Null) { return -1; }
 
-        float3 fX = translationData[x].Value;
-        float3 fY = translationData[y].Value;
+        float3 fX = transformData[x].Position;
+        float3 fY = transformData[y].Position;
         float sqDistX = math.distancesq(fX, pos);
         float sqDistY = math.distancesq(fY, pos);
         return sqDistX.CompareTo(sqDistY);

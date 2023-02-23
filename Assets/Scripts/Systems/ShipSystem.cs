@@ -2,12 +2,9 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Core;
 using Unity.Entities;
-using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
-using static Unity.Properties.PropertyPath;
-using UnityEngine.UIElements;
 
 public struct ClosestNodes
 {
@@ -83,16 +80,16 @@ public struct Ship : IComponentData
     {
         accel += facing * strength;
     }
-    public float3 AverageNodePos(ComponentDataFromEntity<Translation> translationData)
+    public float3 AverageNodePos(ComponentLookup<LocalTransform> transformData)
     {
         float3 avgPos = float3.zero;
         int numClosest = 0;
         for(int i = 0; i < ClosestNodes.numClosestNodes; ++i)
         {
             Entity closest = closestNodes.Get(i);
-            if (translationData.HasComponent(closest))
+            if (transformData.HasComponent(closest))
             {
-                avgPos += translationData[closest].Value;
+                avgPos += transformData[closest].Position;
                 ++numClosest;
             }
         }
@@ -103,9 +100,9 @@ public struct Ship : IComponentData
         return prevPos;
     }
 
-    public float3 GridPosition(ComponentDataFromEntity<Translation> translationData)
+    public float3 GridPosition(ComponentLookup<LocalTransform> transformData)
     {
-        return AverageNodePos(translationData) + nodeOffset;
+        return AverageNodePos(transformData) + nodeOffset;
     }
     public void HandleCollisionAt(float3 collisionPos, float3 normal, float bounciness = 0.5f)
     {
@@ -136,13 +133,13 @@ public struct Player: IComponentData
 [BurstCompile]
 public partial struct FindClosestNodesJob : IJobEntity
 {
-    [ReadOnly] public ComponentDataFromEntity<Translation> translationData;
-    [ReadOnly] public ComponentDataFromEntity<GridNode> nodeData;
+    [ReadOnly] public ComponentLookup<LocalTransform> transformData;
+    [ReadOnly] public ComponentLookup<GridNode> nodeData;
     [ReadOnly] public NativeArray<Entity> nodes;
 
-    void Execute(ref Ship s, in Translation t)
+    void Execute(ref Ship s, in LocalTransform t)
     {
-        float3 shipPos = t.Value;
+        float3 shipPos = t.Position;
         s.closestNodes = ClosestNodes.empty;
 
         //Instead of just sorting the nodes array,
@@ -156,19 +153,19 @@ public partial struct FindClosestNodesJob : IJobEntity
             GridNode nodeComponent = nodeData[nodes[i]];
             if (nodeComponent.isDead) { continue; }
 
-            float3 nodePos = translationData[nodes[i]].Value;
+            float3 nodePos = transformData[nodes[i]].Position;
             float newSqMag = math.distancesq(nodePos, shipPos);
 
             for (int j = 0; j < ClosestNodes.numClosestNodes; ++j)
             {
                 Entity currentClosest = s.closestNodes.Get(j);
-                if (!translationData.HasComponent(currentClosest))
+                if (!transformData.HasComponent(currentClosest))
                 {
                     s.closestNodes.Set(nodes[i], j);
                     break;
                 }
 
-                float3 currentPos = translationData[currentClosest].Value;
+                float3 currentPos = transformData[currentClosest].Position;
                 float currentSqMag = math.distancesq(currentPos, shipPos);
                 if (newSqMag < currentSqMag)
                 {
@@ -177,14 +174,14 @@ public partial struct FindClosestNodesJob : IJobEntity
                 }
             }
         }
-        s.nodeOffset = shipPos - s.AverageNodePos(translationData);
+        s.nodeOffset = shipPos - s.AverageNodePos(transformData);
 
 
         for (int i = 0; i < ClosestNodes.numClosestNodes; ++i)
         {
-            if(translationData.HasComponent(s.closestNodes.Get(i)))
+            if(transformData.HasComponent(s.closestNodes.Get(i)))
             {
-                Debug.DrawLine(shipPos, translationData[s.closestNodes.Get(i)].Value);
+                Debug.DrawLine(shipPos, transformData[s.closestNodes.Get(i)].Position);
             }
         }
     }
@@ -236,8 +233,8 @@ public partial struct UpdatePlayerShipJob: IJobEntity
 public partial struct UpdateShipsWithStationsJob: IJobEntity
 {
     [ReadOnly] public NativeArray<Entity> stationEntities;
-    [ReadOnly] public ComponentDataFromEntity<Translation> translationData;
-    [ReadOnly] public ComponentDataFromEntity<Station> stationData;
+    [ReadOnly] public ComponentLookup<LocalTransform> transformData;
+    [ReadOnly] public ComponentLookup<Station> stationData;
     [ReadOnly] public TimeData timeData;
 
     void Execute(ref Ship ship)
@@ -249,7 +246,7 @@ public partial struct UpdateShipsWithStationsJob: IJobEntity
         {
             Entity stationEntity = stationEntities[i];
             Station station = stationData[stationEntity];
-            float3 stationPos = translationData[stationEntity].Value;
+            float3 stationPos = transformData[stationEntity].Position;
             float distSq = math.distancesq(shipPos, stationPos);
             float3 dir = shipPos - stationPos;
             float3 normalizedDir = math.normalize(dir);
@@ -332,14 +329,14 @@ public partial struct UpdateShipsWithStationsJob: IJobEntity
 public partial struct IntegrateShipsJob: IJobEntity
 {
     [ReadOnly] public TimeData timeData;
-    [ReadOnly] public ComponentDataFromEntity<Translation> translationData;
+    [ReadOnly] public ComponentLookup<LocalTransform> transformData;
     void Execute(ref Ship ship)
     {
         if(ship.dockedAt != Entity.Null && !ship.isUndocking) { return; }
 
         float dt = timeData.DeltaTime;
         float3 shipPos = ship.nextPos;
-        float3 current = shipPos + (ship.GridPosition(translationData) - shipPos) * dt;
+        float3 current = shipPos + (ship.GridPosition(transformData) - shipPos) * dt;
         ship.nextPos = 2 * current - ship.prevPos + ship.accel * (dt * dt);
         ship.accel = float3.zero;
         ship.prevPos = current;
@@ -350,58 +347,71 @@ public partial struct IntegrateShipsJob: IJobEntity
 [BurstCompile]
 public partial struct UpdateShipPositionsJob : IJobEntity
 {
-    void Execute(ref Translation translation, in Ship ship)
+    void Execute(ref LocalTransform t, in Ship ship)
     {
-        translation.Value = ship.nextPos;
+        t.Position = ship.nextPos;
     }
 }
 
 [BurstCompile]
 public partial struct RenderShipsJob : IJobEntity
 {
-    void Execute(in Ship ship, in Translation translation)
+    void Execute(in Ship ship, in LocalTransform t)
     {
-        float3 shipPos = translation.Value;
+        float3 shipPos = t.Position;
         Debug.DrawRay(shipPos, ship.facing, Color.green);
         Debug.DrawRay(shipPos, ship.vel * 60f, Color.red);
         Color c = ship.dockedAt == Entity.Null ? Color.green : Color.blue;
         Utils.DebugDrawCircle(shipPos, ship.size, c, 10);
     }
 }
-public partial class ShipSystem : SystemBase
+
+[BurstCompile]
+public partial struct ShipSystem : ISystem
 {
+    [ReadOnly] private ComponentLookup<LocalTransform> transformData;
+    [ReadOnly] private ComponentLookup<Station> stationData;
+    [ReadOnly] private ComponentLookup<GridNode> nodeData;
+
+    private EntityQuery stationsQuery;
+    private EntityQuery nodesQuery;
 
     [BurstCompile]
-    protected override void OnUpdate()
+    public void OnCreate(ref SystemState systemState)
     {
-        ComponentDataFromEntity<Translation> translationData = GetComponentDataFromEntity<Translation>();
+        transformData = SystemAPI.GetComponentLookup<LocalTransform>();
+        stationData = SystemAPI.GetComponentLookup<Station>();
+        nodeData = SystemAPI.GetComponentLookup<GridNode>();
 
-        Dependency = new UpdatePlayerShipJob { timeData = Time }.ScheduleParallel(Dependency);
+        stationsQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<Station, LocalTransform>().Build(ref systemState);
+        nodesQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<GridNode, LocalTransform>().Build(ref systemState);
+    }
+    [BurstCompile]
+    public void OnDestroy(ref SystemState systemState)
+    {
 
-        ComponentDataFromEntity<Station> stationData = GetComponentDataFromEntity<Station>();
+    }
+    [BurstCompile]
+    public void OnUpdate(ref SystemState systemState)
+    {
+        transformData.Update(ref systemState);
+        stationData.Update(ref systemState);
+        nodeData.Update(ref systemState);
 
-        //Needs dispose (stationEntities)
-        NativeArray<Entity> stationEntities = GetEntityQuery(typeof(Station), typeof(Translation)).ToEntityArray(Allocator.TempJob);
+        NativeArray<Entity> stationEntities = stationsQuery.ToEntityArray(systemState.WorldUpdateAllocator);
+        NativeArray<Entity> nodes = nodesQuery.ToEntityArray(systemState.WorldUpdateAllocator);
 
-        Dependency = new UpdateShipsWithStationsJob { stationEntities = stationEntities, stationData = stationData, translationData = translationData, timeData = Time }.ScheduleParallel(Dependency);
+        systemState.Dependency = new UpdatePlayerShipJob { timeData = SystemAPI.Time }.ScheduleParallel(systemState.Dependency);
 
-        //Gets disposed (stationEntities)
-        Dependency = stationEntities.Dispose(Dependency);
+        systemState.Dependency = new UpdateShipsWithStationsJob { stationEntities = stationEntities, stationData = stationData, transformData = transformData, timeData = SystemAPI.Time }.ScheduleParallel(systemState.Dependency);
 
-        Dependency = new IntegrateShipsJob { timeData = Time, translationData = translationData }.ScheduleParallel(Dependency);
+        systemState.Dependency = new IntegrateShipsJob { timeData = SystemAPI.Time, transformData = transformData }.ScheduleParallel(systemState.Dependency);
 
-        Dependency = new UpdateShipPositionsJob().ScheduleParallel(Dependency);
+        systemState.Dependency = new UpdateShipPositionsJob().ScheduleParallel(systemState.Dependency);
 
-        //Needs dispose (nodes)
-        NativeArray<Entity> nodes = GetEntityQuery(typeof(GridNode), typeof(Translation)).ToEntityArray(Allocator.TempJob);
-        ComponentDataFromEntity<GridNode> nodeData = GetComponentDataFromEntity<GridNode>();
+        systemState.Dependency = new FindClosestNodesJob { transformData = transformData, nodes = nodes, nodeData = nodeData }.ScheduleParallel(systemState.Dependency);
 
-        Dependency = new FindClosestNodesJob { translationData = translationData, nodes = nodes, nodeData = nodeData }.ScheduleParallel(Dependency);
-
-        //Gets disposed (nodes)
-        Dependency = nodes.Dispose(Dependency);
-
-        Dependency = new RenderShipsJob().ScheduleParallel(Dependency);
+        systemState.Dependency = new RenderShipsJob().ScheduleParallel(systemState.Dependency);
     }
 }
 

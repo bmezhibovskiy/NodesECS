@@ -5,7 +5,6 @@ using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
-using static UnityEditor.PlayerSettings;
 
 public struct GridNode : IComponentData
 {
@@ -18,19 +17,19 @@ public struct GridNode : IComponentData
 public partial struct UpdateNodesWithStationsJob: IJobEntity
 {
     [ReadOnly] public NativeArray<Entity> stationEntities;
-    [ReadOnly] public ComponentDataFromEntity<Translation> translationData;
-    [ReadOnly] public ComponentDataFromEntity<Station> stationData;
+    [ReadOnly] public ComponentLookup<LocalTransform> transformData;
+    [ReadOnly] public ComponentLookup<Station> stationData;
     void Execute(ref GridNode gridNode, in Entity e)
     {
         if (gridNode.isBorder) { return; }
 
-        float3 nodePos = translationData[e].Value;
+        float3 nodePos = transformData[e].Position;
 
         gridNode.velocity = float3.zero;
         for (int i = 0; i < stationEntities.Length; ++i)
         {
             Station station = stationData[stationEntities[i]];
-            float3 stationPos = translationData[stationEntities[i]].Value;
+            float3 stationPos = transformData[stationEntities[i]].Position;
             float distSq = math.distancesq(stationPos, nodePos);
 
             for (int j = 0; j < station.modules.Count; ++j)
@@ -66,26 +65,21 @@ public partial struct UpdateNodesWithStationsJob: IJobEntity
             }
         }
     }
-
-    private static void UpdateNodeWithStation(ref GridNode gridNode, Station station, float3 nodePos, float3 stationPos)
-    {
-        
-    }
 }
 
 [BurstCompile]
 public partial struct RenderNodesJob: IJobEntity
 {
-    void Execute(in GridNode gridNode, in Translation translation)
+    void Execute(in GridNode gridNode, in LocalTransform t)
     {
         float3 velVec = gridNode.velocity;
         if (math.distancesq(velVec, float3.zero) < 0.000002f)
         {
-            Utils.DebugDrawCircle(translation.Value, 0.02f, Color.white, 3);
+            Utils.DebugDrawCircle(t.Position, 0.02f, Color.white, 3);
         }
         else
         {
-            Debug.DrawRay(translation.Value, -velVec * 30f);
+            Debug.DrawRay(t.Position, -velVec * 30f);
         }
     }
 }
@@ -93,9 +87,9 @@ public partial struct RenderNodesJob: IJobEntity
 [BurstCompile]
 public partial struct UpdateNodePositionsJob: IJobEntity
 {
-    void Execute(ref Translation translation, in GridNode gridNode)
+    void Execute(ref LocalTransform translation, in GridNode gridNode)
     {
-        translation.Value += gridNode.velocity;
+        translation.Position += gridNode.velocity;
     }
 }
 
@@ -103,7 +97,7 @@ public partial struct UpdateNodePositionsJob: IJobEntity
 public partial struct RemoveDeadNodesJob: IJobEntity
 {
     public EntityCommandBuffer.ParallelWriter ecb;
-    void Execute(in Entity e, [EntityInQueryIndex] int entityInQueryIndex, in GridNode gridNode)
+    void Execute(in Entity e, [EntityIndexInQuery] int entityInQueryIndex, in GridNode gridNode)
     {
         if (gridNode.isDead)
         {
@@ -112,38 +106,46 @@ public partial struct RemoveDeadNodesJob: IJobEntity
     }
 }
 
-public partial class NodeSystem : SystemBase
+[BurstCompile]
+public partial struct NodeSystem : ISystem
 {
-    private EndSimulationEntityCommandBufferSystem ecbSystem;
+    [ReadOnly] private ComponentLookup<LocalTransform> transformData;
+    [ReadOnly] private ComponentLookup<Station> stationData;
 
-    protected override void OnCreate()
+    private EntityQuery stationQuery;
+
+    [BurstCompile]
+    public void OnCreate(ref SystemState systemState)
     {
-        ecbSystem = World.GetOrCreateSystem<EndSimulationEntityCommandBufferSystem>();
+        transformData = systemState.GetComponentLookup<LocalTransform>();
+        stationData = systemState.GetComponentLookup<Station>();
+
+        stationQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<Station, LocalTransform>().Build(ref systemState);
     }
 
     [BurstCompile]
-    protected override void OnUpdate()
+    public void OnDestroy(ref SystemState systemState)
     {
-        EntityCommandBuffer.ParallelWriter ecb = ecbSystem.CreateCommandBuffer().AsParallelWriter();
 
-        ComponentDataFromEntity<Translation> translationData = GetComponentDataFromEntity<Translation>();
-        ComponentDataFromEntity<Station> stationData = GetComponentDataFromEntity<Station>();
-        ComponentDataFromEntity<GridNode> nodeData = GetComponentDataFromEntity<GridNode>();
+    }
 
-        //Needs dispose (stations)
-        NativeArray<Entity> stations = GetEntityQuery(typeof(Station), typeof(Translation)).ToEntityArray(Allocator.TempJob);
+    [BurstCompile]
+    public void OnUpdate(ref SystemState systemState)
+    {
+        transformData.Update(ref systemState);
+        stationData.Update(ref systemState);
 
-        Dependency = new UpdateNodesWithStationsJob { stationEntities = stations, translationData = translationData, stationData = stationData }.ScheduleParallel(Dependency);
+        EndSimulationEntityCommandBufferSystem.Singleton ecbSystem = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>();
+        
+        NativeArray<Entity> stations = stationQuery.ToEntityArray(systemState.WorldUpdateAllocator);
 
-        //Gets disposed (stations)
-        Dependency = stations.Dispose(Dependency);
+        systemState.Dependency = new UpdateNodesWithStationsJob { stationEntities = stations, transformData = transformData, stationData = stationData }.ScheduleParallel(systemState.Dependency);
 
-        Dependency = new RenderNodesJob().ScheduleParallel(Dependency);
+        systemState.Dependency = new RenderNodesJob().ScheduleParallel(systemState.Dependency);
 
-        Dependency = new UpdateNodePositionsJob().ScheduleParallel(Dependency);
+        systemState.Dependency = new UpdateNodePositionsJob().ScheduleParallel(systemState.Dependency);
 
-        Dependency = new RemoveDeadNodesJob { ecb = ecbSystem.CreateCommandBuffer().AsParallelWriter() }.ScheduleParallel(Dependency);
-        ecbSystem.AddJobHandleForProducer(Dependency);
+        systemState.Dependency = new RemoveDeadNodesJob { ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
     }
 
 }

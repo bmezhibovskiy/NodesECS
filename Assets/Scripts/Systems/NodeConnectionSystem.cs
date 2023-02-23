@@ -1,7 +1,6 @@
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
-using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
@@ -37,16 +36,16 @@ public struct NodeConnection : IComponentData
 [BurstCompile]
 public partial struct UpdateConnectionsJob : IJobEntity
 {
-    [ReadOnly] public ComponentDataFromEntity<Translation> translationData;
-    [ReadOnly] public ComponentDataFromEntity<GridNode> nodeData;
+    [ReadOnly] public ComponentLookup<LocalTransform> transformData;
+    [ReadOnly] public ComponentLookup<GridNode> nodeData;
     public EntityCommandBuffer.ParallelWriter ecb;
 
-    void Execute(ref NodeConnection nc, in Entity e, [EntityInQueryIndex] int entityInQueryIndex)
+    void Execute(ref NodeConnection nc, in Entity e, [EntityIndexInQuery] int entityInQueryIndex)
     {
         if(nc.IsInvalid()) { return; }
 
-        float3 posA = translationData[nc.a].Value;
-        float3 posB = translationData[nc.b].Value;
+        float3 posA = transformData[nc.a].Position;
+        float3 posB = transformData[nc.b].Position;
 
         Debug.DrawLine(posA, posB, Color.gray);
 
@@ -56,7 +55,7 @@ public partial struct UpdateConnectionsJob : IJobEntity
 
             Entity newNode = ecb.CreateEntity(entityInQueryIndex);
             ecb.AddComponent(entityInQueryIndex, newNode, new GridNode { velocity = float3.zero, isDead = false, isBorder = false });
-            ecb.AddComponent(entityInQueryIndex, newNode, new Translation { Value = newPos });
+            ecb.AddComponent(entityInQueryIndex, newNode, new LocalTransform { Position = newPos });
             ecb.AddComponent(entityInQueryIndex, newNode, new NeedsConnection { connection = e });
 
             if (nodeData[nc.a].isBorder)
@@ -75,10 +74,10 @@ public partial struct UpdateConnectionsJob : IJobEntity
 public partial struct ConnectToBorderJob : IJobEntity
 {
     [ReadOnly] public NativeArray<Entity> entitiesThatNeedConnection;
-    [ReadOnly] public ComponentDataFromEntity<NeedsConnection> needsConnectionData;
+    [ReadOnly] public ComponentLookup<NeedsConnection> needsConnectionData;
     public EntityCommandBuffer.ParallelWriter ecb;
 
-    void Execute(ref NodeConnection nc, Entity e, [EntityInQueryIndex] int entityInQueryIndex)
+    void Execute(ref NodeConnection nc, Entity e, [EntityIndexInQuery] int entityInQueryIndex)
     {
         for(int i = 0; i < entitiesThatNeedConnection.Length; ++i)
         {
@@ -93,32 +92,44 @@ public partial struct ConnectToBorderJob : IJobEntity
     }
 }
 
-public partial class NodeConnectionSystem : SystemBase
+[BurstCompile]
+public partial struct NodeConnectionSystem : ISystem
 {
-    private EndSimulationEntityCommandBufferSystem ecbSystem;
+    [ReadOnly] private ComponentLookup<LocalTransform> transformData;
+    [ReadOnly] private ComponentLookup<GridNode> nodeData;
+    [ReadOnly] private ComponentLookup<NeedsConnection> needsConnectionData;
 
-    protected override void OnCreate()
+    private EntityQuery connectionEntitiesQuery;
+
+    [BurstCompile]
+    public void OnCreate(ref SystemState systemState)
     {
-        ecbSystem = World.GetOrCreateSystem<EndSimulationEntityCommandBufferSystem>();
+        transformData = SystemAPI.GetComponentLookup<LocalTransform>();
+        nodeData = SystemAPI.GetComponentLookup<GridNode>();
+        needsConnectionData = SystemAPI.GetComponentLookup<NeedsConnection>();
+
+        connectionEntitiesQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<NeedsConnection>().Build(ref systemState);
     }
 
     [BurstCompile]
-    protected override void OnUpdate()
+    public void OnDestroy(ref SystemState systemState)
     {
-        ComponentDataFromEntity<Translation> translationData = GetComponentDataFromEntity<Translation>();
-        ComponentDataFromEntity<GridNode> nodeData = GetComponentDataFromEntity<GridNode>();
-        ComponentDataFromEntity<NeedsConnection> needsConnectionData = GetComponentDataFromEntity<NeedsConnection>();
 
-        Dependency = new UpdateConnectionsJob{ translationData = translationData, nodeData = nodeData, ecb = ecbSystem.CreateCommandBuffer().AsParallelWriter() }.ScheduleParallel(Dependency);
-        ecbSystem.AddJobHandleForProducer(Dependency);
+    }
 
-        //Needs dispose (entitiesThatNeedConnection)
-        NativeArray<Entity> entitiesThatNeedConnection = GetEntityQuery(typeof(NeedsConnection)).ToEntityArray(Allocator.TempJob);
+    [BurstCompile]
+    public void OnUpdate(ref SystemState systemState)
+    {
+        transformData.Update(ref systemState);
+        nodeData.Update(ref systemState);
+        needsConnectionData.Update(ref systemState);
 
-        Dependency = new ConnectToBorderJob { entitiesThatNeedConnection = entitiesThatNeedConnection, needsConnectionData = needsConnectionData, ecb = ecbSystem.CreateCommandBuffer().AsParallelWriter() }.ScheduleParallel(Dependency);
-        ecbSystem.AddJobHandleForProducer(Dependency);
+        EndSimulationEntityCommandBufferSystem.Singleton ecbSystem = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>();
 
-        //Gets disposed (entitiesThatNeedConnection)
-        Dependency = entitiesThatNeedConnection.Dispose(Dependency);
+        NativeArray<Entity> entitiesThatNeedConnection = connectionEntitiesQuery.ToEntityArray(systemState.WorldUpdateAllocator);
+
+        systemState.Dependency = new UpdateConnectionsJob{ transformData = transformData, nodeData = nodeData, ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
+        
+        systemState.Dependency = new ConnectToBorderJob { entitiesThatNeedConnection = entitiesThatNeedConnection, needsConnectionData = needsConnectionData, ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
     }
 }

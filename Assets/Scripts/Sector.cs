@@ -57,7 +57,7 @@ public class Sector : MonoBehaviour
 
     void Update()
     {
-        Vector3 shipPos = em.GetComponentData<Translation>(playerEntity).Value;
+        Vector3 shipPos = em.GetComponentData<LocalTransform>(playerEntity).Position;
         mainCamera.transform.position = new Vector3(shipPos.x, shipPos.y, mainCamera.transform.position.z);
 
 
@@ -100,7 +100,7 @@ public class Sector : MonoBehaviour
 
             if (!gridNode.isBorder) { continue; }
 
-            float3 gridNodePos = em.GetComponentData<Translation>(entities[i]).Value;
+            float3 gridNodePos = em.GetComponentData<LocalTransform>(entities[i]).Position;
 
             NativeArray<Entity> closest = AllClosestNodes(gridNodePos);
             for (int j = 0; j < closest.Length; ++j)
@@ -149,17 +149,17 @@ public class Sector : MonoBehaviour
 
     private void AddNode(float3 pos, bool isBorder)
     {
-        EntityArchetype ea = em.CreateArchetype(typeof(Translation), typeof(GridNode));
+        EntityArchetype ea = em.CreateArchetype(typeof(LocalTransform), typeof(GridNode));
         Entity e = em.CreateEntity(ea);
-        em.AddComponentData(e, new Translation { Value = pos });
+        em.AddComponentData(e, new LocalTransform { Position = pos });
         em.AddComponentData(e, new GridNode { velocity = float3.zero, isDead = false, isBorder = isBorder });
     }
 
     private void AddSectorObject(string name, float3 pos, float size, int factionIndex, SectorObjectModuleInfo[] moduleInfos)
     {
-        EntityArchetype ea = em.CreateArchetype(typeof(Translation), typeof(Station));
+        EntityArchetype ea = em.CreateArchetype(typeof(LocalTransform), typeof(Station));
         Entity e = em.CreateEntity(ea);
-        em.AddComponentData(e, new Translation { Value = pos });
+        em.AddComponentData(e, new LocalTransform { Position = pos });
 
         StationModules modules = new StationModules();
         foreach(SectorObjectModuleInfo moduleInfo in moduleInfos)
@@ -195,11 +195,11 @@ public class Sector : MonoBehaviour
     private Entity AddShip(float3 pos, bool isPlayer)
     {
         EntityArchetype ea = isPlayer ?
-            em.CreateArchetype(typeof(Translation), typeof(Ship), typeof(Player)) :
-            em.CreateArchetype(typeof(Translation), typeof(Ship));
+            em.CreateArchetype(typeof(LocalTransform), typeof(Ship), typeof(Player)) :
+            em.CreateArchetype(typeof(LocalTransform), typeof(Ship));
 
         Entity e = em.CreateEntity(ea);
-        em.AddComponentData(e, new Translation { Value = pos });
+        em.AddComponentData(e, new LocalTransform { Position = pos });
         em.AddComponentData(e, new Ship
         {
             size = 0.25f,

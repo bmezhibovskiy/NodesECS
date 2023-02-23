@@ -122,18 +122,29 @@ public struct Station: IComponentData
 [BurstCompile]
 public partial struct RenderStationsJob: IJobEntity
 {
-    void Execute(in Station s, in Translation t)
+    void Execute(in Station s, in LocalTransform t)
     {
-        //Debug.Log($"Station: [{ s.displayName}]");
-        Utils.DebugDrawCircle(t.Value, s.size, Color.white, 20);
+        Utils.DebugDrawCircle(t.Position, s.size, Color.white, 20);
     }
 }
 
-public partial class StationSystem : SystemBase
+[BurstCompile]
+public partial struct StationSystem : ISystem
 {
+
     [BurstCompile]
-    protected override void OnUpdate()
+    public void OnCreate(ref SystemState systemState)
     {
-        Dependency = new RenderStationsJob().ScheduleParallel(Dependency);   
+    }
+
+    [BurstCompile]
+    public void OnDestroy(ref SystemState systemState)
+    {
+    }
+
+    [BurstCompile]
+    public void OnUpdate(ref SystemState systemState)
+    {
+        systemState.Dependency = new RenderStationsJob().ScheduleParallel(systemState.Dependency);   
     }
 }
