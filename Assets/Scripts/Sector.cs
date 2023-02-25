@@ -3,6 +3,9 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using Unity.Collections;
+using Unity.Rendering;
+using System.Collections.Generic;
+using System.Numerics;
 
 public class Sector : MonoBehaviour
 {
@@ -24,7 +27,6 @@ public class Sector : MonoBehaviour
 
     void Start()
     {
-        
     }
 
 
@@ -42,7 +44,7 @@ public class Sector : MonoBehaviour
 
         this.numNodes = is3d ? numSideNodes * numSideNodes * numSideNodes : numSideNodes * numSideNodes;
         this.nodeDistance = sideLength / (float)numSideNodes;
-        this.nodeOffset = Vector3.up * nodeDistance;
+        this.nodeOffset = new float3(0, nodeDistance, 0);
 
         this.em = World.DefaultGameObjectInjectionWorld.EntityManager;
 
@@ -57,10 +59,8 @@ public class Sector : MonoBehaviour
 
     void Update()
     {
-        Vector3 shipPos = em.GetComponentData<LocalTransform>(playerEntity).Position;
-        mainCamera.transform.position = new Vector3(shipPos.x, shipPos.y, mainCamera.transform.position.z);
-
-
+        float3 shipPos = em.GetComponentData<LocalToWorld>(playerEntity).Position;
+        mainCamera.transform.position = new UnityEngine.Vector3(shipPos.x, shipPos.y, mainCamera.transform.position.z);
     }
 
     void OnGUI()
@@ -100,7 +100,7 @@ public class Sector : MonoBehaviour
 
             if (!gridNode.isBorder) { continue; }
 
-            float3 gridNodePos = em.GetComponentData<LocalTransform>(entities[i]).Position;
+            float3 gridNodePos = em.GetComponentData<LocalToWorld>(entities[i]).Position;
 
             NativeArray<Entity> closest = AllClosestNodes(gridNodePos);
             for (int j = 0; j < closest.Length; ++j)
@@ -149,17 +149,20 @@ public class Sector : MonoBehaviour
 
     private void AddNode(float3 pos, bool isBorder)
     {
-        EntityArchetype ea = em.CreateArchetype(typeof(LocalTransform), typeof(GridNode));
-        Entity e = em.CreateEntity(ea);
-        em.AddComponentData(e, new LocalTransform { Position = pos });
+        Entity e = em.Instantiate(Globals.sharedPrototypes.Data.nodePrototype);
+
+        float scale = 0.2f;
+        float4x4 localToWorldData = math.mul(float4x4.Translate(pos), float4x4.Scale(scale));
+
         em.AddComponentData(e, new GridNode { velocity = float3.zero, isDead = false, isBorder = isBorder });
+        em.AddComponentData(e, new LocalToWorld { Value = localToWorldData });
     }
 
     private void AddSectorObject(string name, float3 pos, float size, int factionIndex, SectorObjectModuleInfo[] moduleInfos)
     {
-        EntityArchetype ea = em.CreateArchetype(typeof(LocalTransform), typeof(Station));
+        EntityArchetype ea = em.CreateArchetype(typeof(Station));
         Entity e = em.CreateEntity(ea);
-        em.AddComponentData(e, new LocalTransform { Position = pos });
+        em.AddComponentData(e, new LocalToWorld { Value = float4x4.Translate(pos) });
 
         StationModules modules = new StationModules();
         foreach(SectorObjectModuleInfo moduleInfo in moduleInfos)
@@ -195,11 +198,11 @@ public class Sector : MonoBehaviour
     private Entity AddShip(float3 pos, bool isPlayer)
     {
         EntityArchetype ea = isPlayer ?
-            em.CreateArchetype(typeof(LocalTransform), typeof(Ship), typeof(Player)) :
-            em.CreateArchetype(typeof(LocalTransform), typeof(Ship));
+            em.CreateArchetype(typeof(Player)) :
+            em.CreateArchetype(typeof(Ship));
 
         Entity e = em.CreateEntity(ea);
-        em.AddComponentData(e, new LocalTransform { Position = pos });
+        em.AddComponentData(e, new LocalToWorld { Value = float4x4.Translate(pos) });
         em.AddComponentData(e, new Ship
         {
             size = 0.25f,

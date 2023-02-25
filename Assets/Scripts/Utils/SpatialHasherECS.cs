@@ -127,7 +127,7 @@ public struct SpatialHasher
         bucketCounts[hash] = oldLastEntityIndex;
     }
 
-    public NativeArray<Entity> ClosestNodes(float3 point, int numberOfObjectsToFetch, ComponentLookup<LocalTransform> transformData)
+    public NativeArray<Entity> ClosestNodes(float3 point, int numberOfObjectsToFetch, ComponentLookup<LocalToWorld> transformData)
     {
         NativeArray<Entity> closestObjects = new NativeArray<Entity>(numberOfObjectsToFetch, Allocator.Temp);
         int2 hashCoords = Utils.to2D(Hash(point), numSideBuckets);

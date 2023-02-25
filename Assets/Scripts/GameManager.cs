@@ -1,11 +1,18 @@
 using UnityEngine;
 using Unity.Burst;
 using System.Collections.Generic;
+using Unity.Entities;
+using Unity.Rendering;
+using UnityEngine.Rendering;
+using Unity.Mathematics;
+using Unity.Transforms;
 
 public static class Globals
 {
     public readonly static SharedStatic<InputState> sharedInputState = SharedStatic<InputState>.GetOrCreate<InputStateKey>();
+    public readonly static SharedStatic<EntityPrototypes> sharedPrototypes = SharedStatic<EntityPrototypes>.GetOrCreate<EntityPrototypesKey>();
     private class InputStateKey { }
+    private class EntityPrototypesKey { }
 
     static Globals()
     {
@@ -30,19 +37,53 @@ public struct InputState
     }
 }
 
+public struct EntityPrototypes
+{
+    public Entity nodePrototype;
+}
+
+public enum GameEntityType
+{
+    Node
+}
+
 public class GameManager : MonoBehaviour
 {
     [SerializeField]
     Camera mainCamera;
+
+    [SerializeField]
+    Mesh nodeMesh;
+
+    [SerializeField]
+    Material nodeMaterial;
 
     GameObject mapObject;
 
     // Start is called before the first frame update
     void Start()
     {
+        GraphicsSettings.useScriptableRenderPipelineBatching = true;
+
+        SetUpPrototypes();
+
         mapObject = new GameObject("Map");
         Map map = mapObject.AddComponent<Map>();
+
         map.Instantiate(mainCamera);
+    }
+
+    private void SetUpPrototypes()
+    {
+        EntityManager em = World.DefaultGameObjectInjectionWorld.EntityManager;
+        EntityArchetype ea = em.CreateArchetype(typeof(GridNode));
+        Entity nodePrototype = em.CreateEntity(ea);
+
+        RenderMeshDescription rmd = new RenderMeshDescription(ShadowCastingMode.Off, false);
+        RenderMeshArray renderMeshArray = new RenderMeshArray(new Material[] { nodeMaterial }, new Mesh[] { nodeMesh });
+        RenderMeshUtility.AddComponents(nodePrototype, em, rmd, renderMeshArray, MaterialMeshInfo.FromRenderMeshArrayIndices(0, 0));
+
+        Globals.sharedPrototypes.Data.nodePrototype = nodePrototype;
     }
 
     // Update is called once per frame

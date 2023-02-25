@@ -10,8 +10,8 @@ public struct EntityComparerWithEM : IComparer<Entity>
     [ReadOnly] public float3 pos;
     public int Compare(Entity a, Entity b)
     {
-        float3 tA = em.GetComponentData<LocalTransform>(a).Position;
-        float3 tB = em.GetComponentData<LocalTransform>(b).Position;
+        float3 tA = em.GetComponentData<LocalToWorld>(a).Position;
+        float3 tB = em.GetComponentData<LocalToWorld>(b).Position;
         float distA = math.distancesq(tA, pos);
         float distB = math.distancesq(tB, pos);
         return distA.CompareTo(distB);
@@ -21,7 +21,7 @@ public struct EntityComparerWithEM : IComparer<Entity>
 public struct EntityComparerWithTD : IComparer<Entity>
 {
     [ReadOnly] public float3 pos;
-    [ReadOnly] public ComponentLookup<LocalTransform> transformData;
+    [ReadOnly] public ComponentLookup<LocalToWorld> transformData;
 
     public int Compare(Entity x, Entity y)
     {

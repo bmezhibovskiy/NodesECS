@@ -122,7 +122,7 @@ public struct Station: IComponentData
 [BurstCompile]
 public partial struct RenderStationsJob: IJobEntity
 {
-    void Execute(in Station s, in LocalTransform t)
+    void Execute(in Station s, in LocalToWorld t)
     {
         Utils.DebugDrawCircle(t.Position, s.size, Color.white, 20);
     }

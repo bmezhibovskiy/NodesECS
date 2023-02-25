@@ -80,7 +80,7 @@ public struct Ship : IComponentData
     {
         accel += facing * strength;
     }
-    public float3 AverageNodePos(ComponentLookup<LocalTransform> transformData)
+    public float3 AverageNodePos(ComponentLookup<LocalToWorld> transformData)
     {
         float3 avgPos = float3.zero;
         int numClosest = 0;
@@ -100,7 +100,7 @@ public struct Ship : IComponentData
         return prevPos;
     }
 
-    public float3 GridPosition(ComponentLookup<LocalTransform> transformData)
+    public float3 GridPosition(ComponentLookup<LocalToWorld> transformData)
     {
         return AverageNodePos(transformData) + nodeOffset;
     }
@@ -133,11 +133,11 @@ public struct Player: IComponentData
 [BurstCompile]
 public partial struct FindClosestNodesJob : IJobEntity
 {
-    [ReadOnly] public ComponentLookup<LocalTransform> transformData;
+    [ReadOnly] public ComponentLookup<LocalToWorld> transformData;
     [ReadOnly] public ComponentLookup<GridNode> nodeData;
     [ReadOnly] public NativeArray<Entity> nodes;
 
-    void Execute(ref Ship s, in LocalTransform t)
+    void Execute(ref Ship s, in LocalToWorld t)
     {
         float3 shipPos = t.Position;
         s.closestNodes = ClosestNodes.empty;
@@ -233,7 +233,7 @@ public partial struct UpdatePlayerShipJob: IJobEntity
 public partial struct UpdateShipsWithStationsJob: IJobEntity
 {
     [ReadOnly] public NativeArray<Entity> stationEntities;
-    [ReadOnly] public ComponentLookup<LocalTransform> transformData;
+    [ReadOnly] public ComponentLookup<LocalToWorld> transformData;
     [ReadOnly] public ComponentLookup<Station> stationData;
     [ReadOnly] public TimeData timeData;
 
@@ -329,7 +329,7 @@ public partial struct UpdateShipsWithStationsJob: IJobEntity
 public partial struct IntegrateShipsJob: IJobEntity
 {
     [ReadOnly] public TimeData timeData;
-    [ReadOnly] public ComponentLookup<LocalTransform> transformData;
+    [ReadOnly] public ComponentLookup<LocalToWorld> transformData;
     void Execute(ref Ship ship)
     {
         if(ship.dockedAt != Entity.Null && !ship.isUndocking) { return; }
@@ -347,16 +347,16 @@ public partial struct IntegrateShipsJob: IJobEntity
 [BurstCompile]
 public partial struct UpdateShipPositionsJob : IJobEntity
 {
-    void Execute(ref LocalTransform t, in Ship ship)
+    void Execute(ref LocalToWorld t, in Ship ship)
     {
-        t.Position = ship.nextPos;
+        t.Value.c3 = new float4(ship.nextPos, 1.0f);
     }
 }
 
 [BurstCompile]
 public partial struct RenderShipsJob : IJobEntity
 {
-    void Execute(in Ship ship, in LocalTransform t)
+    void Execute(in Ship ship, in LocalToWorld t)
     {
         float3 shipPos = t.Position;
         Debug.DrawRay(shipPos, ship.facing, Color.green);
@@ -369,7 +369,7 @@ public partial struct RenderShipsJob : IJobEntity
 [BurstCompile]
 public partial struct ShipSystem : ISystem
 {
-    [ReadOnly] private ComponentLookup<LocalTransform> transformData;
+    [ReadOnly] private ComponentLookup<LocalToWorld> transformData;
     [ReadOnly] private ComponentLookup<Station> stationData;
     [ReadOnly] private ComponentLookup<GridNode> nodeData;
 
@@ -379,12 +379,12 @@ public partial struct ShipSystem : ISystem
     [BurstCompile]
     public void OnCreate(ref SystemState systemState)
     {
-        transformData = SystemAPI.GetComponentLookup<LocalTransform>();
+        transformData = SystemAPI.GetComponentLookup<LocalToWorld>();
         stationData = SystemAPI.GetComponentLookup<Station>();
         nodeData = SystemAPI.GetComponentLookup<GridNode>();
 
-        stationsQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<Station, LocalTransform>().Build(ref systemState);
-        nodesQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<GridNode, LocalTransform>().Build(ref systemState);
+        stationsQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<Station, LocalToWorld>().Build(ref systemState);
+        nodesQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<GridNode, LocalToWorld>().Build(ref systemState);
     }
     [BurstCompile]
     public void OnDestroy(ref SystemState systemState)

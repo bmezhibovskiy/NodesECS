@@ -2,8 +2,10 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using Unity.Rendering;
 using Unity.Transforms;
 using UnityEngine;
+using static UnityEditor.PlayerSettings;
 
 public struct NeedsConnection: IComponentData
 {
@@ -36,7 +38,7 @@ public struct NodeConnection : IComponentData
 [BurstCompile]
 public partial struct UpdateConnectionsJob : IJobEntity
 {
-    [ReadOnly] public ComponentLookup<LocalTransform> transformData;
+    [ReadOnly] public ComponentLookup<LocalToWorld> transformData;
     [ReadOnly] public ComponentLookup<GridNode> nodeData;
     public EntityCommandBuffer.ParallelWriter ecb;
 
@@ -48,14 +50,17 @@ public partial struct UpdateConnectionsJob : IJobEntity
         float3 posB = transformData[nc.b].Position;
 
         Debug.DrawLine(posA, posB, Color.gray);
-
-        if (math.distancesq(posA, posB) > 1.8f * 1.8f)
+        
+        if (math.distancesq(posA, posB) > 1.3f * 1.3f)
         {
             float3 newPos = 0.5f * (posA + posB);
 
-            Entity newNode = ecb.CreateEntity(entityInQueryIndex);
+            Entity newNode = ecb.Instantiate(entityInQueryIndex, Globals.sharedPrototypes.Data.nodePrototype);
+
+            float scale = 0.2f;
+            float4x4 localToWorldData = math.mul(float4x4.Translate(newPos), float4x4.Scale(scale));
+            ecb.AddComponent(entityInQueryIndex, newNode, new LocalToWorld { Value = localToWorldData });
             ecb.AddComponent(entityInQueryIndex, newNode, new GridNode { velocity = float3.zero, isDead = false, isBorder = false });
-            ecb.AddComponent(entityInQueryIndex, newNode, new LocalTransform { Position = newPos });
             ecb.AddComponent(entityInQueryIndex, newNode, new NeedsConnection { connection = e });
 
             if (nodeData[nc.a].isBorder)
@@ -95,7 +100,7 @@ public partial struct ConnectToBorderJob : IJobEntity
 [BurstCompile]
 public partial struct NodeConnectionSystem : ISystem
 {
-    [ReadOnly] private ComponentLookup<LocalTransform> transformData;
+    [ReadOnly] private ComponentLookup<LocalToWorld> transformData;
     [ReadOnly] private ComponentLookup<GridNode> nodeData;
     [ReadOnly] private ComponentLookup<NeedsConnection> needsConnectionData;
 
@@ -104,7 +109,7 @@ public partial struct NodeConnectionSystem : ISystem
     [BurstCompile]
     public void OnCreate(ref SystemState systemState)
     {
-        transformData = SystemAPI.GetComponentLookup<LocalTransform>();
+        transformData = SystemAPI.GetComponentLookup<LocalToWorld>();
         nodeData = SystemAPI.GetComponentLookup<GridNode>();
         needsConnectionData = SystemAPI.GetComponentLookup<NeedsConnection>();
 
@@ -128,8 +133,9 @@ public partial struct NodeConnectionSystem : ISystem
 
         NativeArray<Entity> entitiesThatNeedConnection = connectionEntitiesQuery.ToEntityArray(systemState.WorldUpdateAllocator);
 
+        systemState.Dependency = new ConnectToBorderJob { entitiesThatNeedConnection = entitiesThatNeedConnection, needsConnectionData = needsConnectionData, ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
+
         systemState.Dependency = new UpdateConnectionsJob{ transformData = transformData, nodeData = nodeData, ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
         
-        systemState.Dependency = new ConnectToBorderJob { entitiesThatNeedConnection = entitiesThatNeedConnection, needsConnectionData = needsConnectionData, ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
     }
 }

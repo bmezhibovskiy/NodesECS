@@ -1,6 +1,7 @@
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
+using Unity.Entities.UniversalDelegates;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -17,11 +18,11 @@ public struct GridNode : IComponentData
 public partial struct UpdateNodesWithStationsJob: IJobEntity
 {
     [ReadOnly] public NativeArray<Entity> stationEntities;
-    [ReadOnly] public ComponentLookup<LocalTransform> transformData;
+    [ReadOnly] public ComponentLookup<LocalToWorld> transformData;
     [ReadOnly] public ComponentLookup<Station> stationData;
     void Execute(ref GridNode gridNode, in Entity e)
     {
-        if (gridNode.isBorder) { return; }
+        if (gridNode.isBorder || gridNode.isDead) { return; }
 
         float3 nodePos = transformData[e].Position;
 
@@ -68,28 +69,23 @@ public partial struct UpdateNodesWithStationsJob: IJobEntity
 }
 
 [BurstCompile]
-public partial struct RenderNodesJob: IJobEntity
-{
-    void Execute(in GridNode gridNode, in LocalTransform t)
-    {
-        float3 velVec = gridNode.velocity;
-        if (math.distancesq(velVec, float3.zero) < 0.000002f)
-        {
-            Utils.DebugDrawCircle(t.Position, 0.02f, Color.white, 3);
-        }
-        else
-        {
-            Debug.DrawRay(t.Position, -velVec * 30f);
-        }
-    }
-}
-
-[BurstCompile]
 public partial struct UpdateNodePositionsJob: IJobEntity
 {
-    void Execute(ref LocalTransform translation, in GridNode gridNode)
+    void Execute(ref LocalToWorld transform, in GridNode gridNode)
     {
-        translation.Position += gridNode.velocity;
+        if(gridNode.isBorder || gridNode.isDead) { return; }
+
+        float defaultScale = 0.2f;
+        float s = math.distance(gridNode.velocity, float3.zero) * 100.0f;
+        float3 n = math.normalize(gridNode.velocity);
+
+        float angle = math.radians(Vector3.SignedAngle(Vector3.right, n, Vector3.forward));
+        float4x4 rotation = float4x4.RotateZ(angle);
+        float3 newPos = new float3(transform.Value.c3.x, transform.Value.c3.y, transform.Value.c3.z) + gridNode.velocity;
+        float4x4 translation = float4x4.Translate(newPos);
+        float4x4 scale = float4x4.Scale(s + defaultScale, defaultScale, defaultScale);
+        
+        transform.Value = math.mul(translation, math.mul(rotation, scale));
     }
 }
 
@@ -109,7 +105,7 @@ public partial struct RemoveDeadNodesJob: IJobEntity
 [BurstCompile]
 public partial struct NodeSystem : ISystem
 {
-    [ReadOnly] private ComponentLookup<LocalTransform> transformData;
+    [ReadOnly] private ComponentLookup<LocalToWorld> transformData;
     [ReadOnly] private ComponentLookup<Station> stationData;
 
     private EntityQuery stationQuery;
@@ -117,10 +113,10 @@ public partial struct NodeSystem : ISystem
     [BurstCompile]
     public void OnCreate(ref SystemState systemState)
     {
-        transformData = systemState.GetComponentLookup<LocalTransform>();
+        transformData = systemState.GetComponentLookup<LocalToWorld>();
         stationData = systemState.GetComponentLookup<Station>();
 
-        stationQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<Station, LocalTransform>().Build(ref systemState);
+        stationQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<Station, LocalToWorld>().Build(ref systemState);
     }
 
     [BurstCompile]
@@ -140,8 +136,6 @@ public partial struct NodeSystem : ISystem
         NativeArray<Entity> stations = stationQuery.ToEntityArray(systemState.WorldUpdateAllocator);
 
         systemState.Dependency = new UpdateNodesWithStationsJob { stationEntities = stations, transformData = transformData, stationData = stationData }.ScheduleParallel(systemState.Dependency);
-
-        systemState.Dependency = new RenderNodesJob().ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new UpdateNodePositionsJob().ScheduleParallel(systemState.Dependency);
 
