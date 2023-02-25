@@ -76,7 +76,7 @@ public class GameManager : MonoBehaviour
     private void SetUpPrototypes()
     {
         EntityManager em = World.DefaultGameObjectInjectionWorld.EntityManager;
-        EntityArchetype ea = em.CreateArchetype(typeof(GridNode));
+        EntityArchetype ea = em.CreateArchetype();
         Entity nodePrototype = em.CreateEntity(ea);
 
         RenderMeshDescription rmd = new RenderMeshDescription(ShadowCastingMode.Off, false);
