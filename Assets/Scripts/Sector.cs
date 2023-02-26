@@ -58,8 +58,15 @@ public class Sector : MonoBehaviour
 
         this.em = World.DefaultGameObjectInjectionWorld.EntityManager;
 
-        GenerateNodes();
-        GenerateConnections();
+        int numBorderNodes = 2 * numSideNodes + 2 * (numSideNodes - 2);
+        if(is3d)
+        {
+            numBorderNodes = 2 * (numSideNodes * numSideNodes) + 2 * ((numSideNodes - 2) * numSideNodes) + 2 * ((numSideNodes - 2) * (numSideNodes - 2));
+        }
+        NativeArray<Entity> borderNodes = new NativeArray<Entity>(numBorderNodes, Allocator.Temp);
+        NativeArray<Entity> nonBorderNodes = new NativeArray<Entity>(numNodes - numBorderNodes, Allocator.Temp);
+        GenerateNodes(borderNodes, nonBorderNodes);
+        GenerateConnections(borderNodes, nonBorderNodes);
         foreach(SectorObjectInfo soi in info.sectorObjectInfos)
         {
             AddSectorObject(soi.name, soi.position, soi.size, soi.factionIndex, soi.moduleInfos);
@@ -89,8 +96,10 @@ public class Sector : MonoBehaviour
         GUI.Label(new Rect(10, 10, 100, 20), displayName);
     }
 
-    private void GenerateNodes()
+    private void GenerateNodes(NativeArray<Entity> borderNodes, NativeArray<Entity> nonBorderNodes)
     {
+        int numBorderNodes = 0;
+        int numNonBorderNodes = 0;
         for (int i = 0; i < numNodes; i++)
         {
             int2 raw2D = Utils.to2D(i, numSideNodes);
@@ -99,41 +108,56 @@ public class Sector : MonoBehaviour
             int[] raw = is3d ? new int[] { raw3D.x, raw3D.y, raw3D.z } : new int[] { raw2D.x, raw2D.y };
             float x = (float)(raw[0] - numSideNodes / 2) * nodeDistance;
             float y = (float)(raw[1] - numSideNodes / 2) * nodeDistance;
+            bool isBorder = IsBorder(raw);
+            Entity addedNode;
             if (is3d)
             {
                 float z = (float)(raw[2] - numSideNodes / 2) * nodeDistance;
-                AddNode(new float3(x, y, z) + nodeOffset, IsBorder(raw));
+                addedNode = AddNode(new float3(x, y, z) + nodeOffset, isBorder);
             }
             else
             {
-                AddNode(new float3(x, y, 0) + nodeOffset, IsBorder(raw));
+                addedNode = AddNode(new float3(x, y, 0) + nodeOffset, isBorder);
+            }
+            if(isBorder)
+            {
+                borderNodes[numBorderNodes++] = addedNode;
+            }
+            else
+            {
+                nonBorderNodes[numNonBorderNodes++] = addedNode;
             }
         }
     }
-    private void GenerateConnections()
+    private void GenerateConnections(NativeArray<Entity> borderNodes, NativeArray<Entity> nonBorderNodes)
     {
-        NativeArray<Entity> entities = em.GetAllEntities();
-        for (int i = 0; i < entities.Length; ++i)
+        for (int i = 0; i < borderNodes.Length; ++i)
         {
-            if (!em.HasComponent<GridNode>(entities[i])) { continue; }
+            Entity borderNode = borderNodes[i];
 
-            GridNode gridNode = em.GetComponentData<GridNode>(entities[i]);
+            float3 borderNodePos = em.GetComponentData<LocalToWorld>(borderNode).Position;
 
-            if (!gridNode.isBorder) { continue; }
+            Entity closest = ClosestNode(borderNodePos, nonBorderNodes);
+            AddConnection(borderNode, closest);
+        }
+    }
 
-            float3 gridNodePos = em.GetComponentData<LocalToWorld>(entities[i]).Position;
-
-            NativeArray<Entity> closest = AllClosestNodes(gridNodePos);
-            for (int j = 0; j < closest.Length; ++j)
+    private Entity ClosestNode(float3 pos, NativeArray<Entity> nonBorderNodes)
+    {
+        Entity currentClosest = nonBorderNodes[0];
+        float currentDistSq = math.distancesq(pos, em.GetComponentData<LocalToWorld>(currentClosest).Position);
+        for (int i = 1; i < nonBorderNodes.Length; ++i)
+        {
+            Entity candidate = nonBorderNodes[i];
+            float3 nodePos = em.GetComponentData<LocalToWorld>(candidate).Position;
+            float distSq = math.distancesq(pos, nodePos);
+            if (distSq < currentDistSq)
             {
-                GridNode closestGridNode = em.GetComponentData<GridNode>(closest[j]);
-                if (!closestGridNode.isBorder)
-                {
-                    AddConnection(entities[i], closest[j]);
-                    break;
-                }
+                currentClosest = candidate;
+                currentDistSq = distSq;
             }
         }
+        return currentClosest;
     }
 
     private void AddConnection(Entity a, Entity b)
@@ -144,32 +168,7 @@ public class Sector : MonoBehaviour
         em.AddComponentData(e, new DestroyOnLevelUnload());
     }
 
-    private NativeArray<Entity> AllClosestNodes(float3 pos)
-    {
-        NativeArray<Entity> allEntities = em.GetAllEntities();
-        int numNodes = 0;
-        for (int i = 0; i < allEntities.Length; ++i)
-        {
-            if (em.HasComponent<GridNode>(allEntities[i]))
-            {
-                ++numNodes;
-            }
-        }
-        NativeArray<Entity> nodes = new NativeArray<Entity>(numNodes, Allocator.Temp);
-        int currentNode = 0;
-        for (int i = 0; i < allEntities.Length; ++i)
-        {
-            if (em.HasComponent<GridNode>(allEntities[i]))
-            {
-                nodes[currentNode++] = allEntities[i];
-            }
-        }
-
-        nodes.Sort(new EntityComparerWithEM { em = em, pos = pos });
-        return nodes;
-    }
-
-    private void AddNode(float3 pos, bool isBorder)
+    private Entity AddNode(float3 pos, bool isBorder)
     {
         Entity e = em.Instantiate(Globals.sharedPrototypes.Data.nodePrototype);
 
@@ -183,6 +182,7 @@ public class Sector : MonoBehaviour
             em.AddComponentData(e, new HDRPMaterialPropertyBaseColor { Value = new float4(1, 0, 0, 1)});
         }
         em.AddComponentData(e, new DestroyOnLevelUnload());
+        return e;
     }
 
     private void AddSectorObject(string name, float3 pos, float size, int factionIndex, SectorObjectModuleInfo[] moduleInfos)

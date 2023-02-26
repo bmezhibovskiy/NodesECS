@@ -49,7 +49,7 @@ public partial struct UpdateConnectionsJob : IJobEntity
 
         float3 posA = transformData[nc.a].Position;
         float3 posB = transformData[nc.b].Position;
-        
+
         if (math.distancesq(posA, posB) > maxDist * maxDist)
         {
             float3 newPos = 0.5f * (posA + posB);
