@@ -50,10 +50,12 @@ public struct EntityPrototypes
 
 public struct LevelInfo
 {
+    public int sectorIndex;
     public float nodeDistance;
     public bool needsDestroy;
-    public void Initialize(float nodeDistance = 0)
+    public void Initialize(int sectorIndex = 0, float nodeDistance = 0)
     {
+        this.sectorIndex = sectorIndex;
         this.nodeDistance = nodeDistance;
         this.needsDestroy = false;
     }

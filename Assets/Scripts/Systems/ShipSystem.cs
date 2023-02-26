@@ -260,7 +260,12 @@ public partial struct UpdatePlayerShipJob: IJobEntity
         {
             if(!ship.PreparingHyperspace())
             {
-                ship.StartHyperspace(3, 50);
+                int targetIndex = 0;
+                if(Globals.sharedLevelInfo.Data.sectorIndex == 0)
+                {
+                    targetIndex = 3;
+                }
+                ship.StartHyperspace(targetIndex, 50);
             }
         }
     }

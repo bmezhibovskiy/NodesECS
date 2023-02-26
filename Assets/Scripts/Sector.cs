@@ -54,7 +54,7 @@ public class Sector : MonoBehaviour
         this.nodeDistance = sideLength / (float)numSideNodes;
         this.nodeOffset = new float3(0, nodeDistance, 0);
 
-        Globals.sharedLevelInfo.Data.Initialize(nodeDistance);
+        Globals.sharedLevelInfo.Data.Initialize(info.sectorId, nodeDistance);
 
         this.em = World.DefaultGameObjectInjectionWorld.EntityManager;
 
