@@ -33,7 +33,6 @@ public partial struct CleanupSystem : ISystem
     public void OnUpdate(ref SystemState systemState)
     {
         if(!Globals.sharedLevelInfo.Data.needsDestroy) { return; }
-        Globals.sharedLevelInfo.Data.needsDestroy = false;
 
         BeginSimulationEntityCommandBufferSystem.Singleton ecbSystem = SystemAPI.GetSingleton<BeginSimulationEntityCommandBufferSystem.Singleton>();
         systemState.Dependency = new DestroyAllEntitiesJob { ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);

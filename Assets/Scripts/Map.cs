@@ -55,6 +55,7 @@ public class Map : MonoBehaviour
         if (needsLoad && numEntities <= 0)
         {
             needsLoad = false;
+            Globals.sharedLevelInfo.Data.needsDestroy = false;
             LoadCurrentSector();
         }
     }
