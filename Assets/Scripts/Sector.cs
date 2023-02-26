@@ -6,8 +6,14 @@ using Unity.Collections;
 using static UnityEngine.Rendering.DebugUI;
 using Unity.Rendering;
 
+public struct DestroyOnLevelUnload: IComponentData
+{
+
+}
+
 public class Sector : MonoBehaviour
 {
+    Map parent;
     Camera mainCamera;
 
     string displayName;
@@ -24,19 +30,22 @@ public class Sector : MonoBehaviour
     private EntityManager em;
     private Entity playerEntity;
 
+    private bool isPlayerJumping = false;
+
     void Start()
     {
     }
 
 
-    public void Initialize(SectorInfo info, Camera mainCamera)
+    public void Initialize(SectorInfo info, Camera mainCamera, Map parent)
     {
         this.displayName = info.name;
         this.is3d = info.is3d;
         this.sideLength = info.sideLength;
         this.numSideNodes = info.sideNodes;
         this.startPos = info.startPosition;
-        
+
+        this.parent = parent;
         this.mainCamera = mainCamera;
 
         mainCamera.orthographic = !is3d;
@@ -60,8 +69,19 @@ public class Sector : MonoBehaviour
 
     void Update()
     {
+        if (isPlayerJumping) { return; }
+
         float3 shipPos = em.GetComponentData<LocalToWorld>(playerEntity).Position;
-        mainCamera.transform.position = new UnityEngine.Vector3(shipPos.x, shipPos.y, mainCamera.transform.position.z);
+        mainCamera.transform.position = new Vector3(shipPos.x, shipPos.y, mainCamera.transform.position.z);
+
+        Ship ship = em.GetComponentData<Ship>(playerEntity);
+        if(ship.ShouldJumpNow())
+        {
+            isPlayerJumping = true;
+            int newSectorId = ship.hyperspaceTarget;
+            parent.Jump(newSectorId);
+        }
+        
     }
 
     void OnGUI()
@@ -121,6 +141,7 @@ public class Sector : MonoBehaviour
         EntityArchetype ea = em.CreateArchetype(typeof(NodeConnection));
         Entity e = em.CreateEntity(ea);
         em.AddComponentData(e, new NodeConnection { a = a, b = b });
+        em.AddComponentData(e, new DestroyOnLevelUnload());
     }
 
     private NativeArray<Entity> AllClosestNodes(float3 pos)
@@ -161,6 +182,7 @@ public class Sector : MonoBehaviour
         {
             em.AddComponentData(e, new HDRPMaterialPropertyBaseColor { Value = new float4(1, 0, 0, 1)});
         }
+        em.AddComponentData(e, new DestroyOnLevelUnload());
     }
 
     private void AddSectorObject(string name, float3 pos, float size, int factionIndex, SectorObjectModuleInfo[] moduleInfos)
@@ -180,6 +202,7 @@ public class Sector : MonoBehaviour
             modules.Add(module);
         }
         em.AddComponentData(e, new Station { displayName = new FixedString128Bytes(name), size = size, factionIndex = factionIndex, modules = modules });
+        em.AddComponentData(e, new DestroyOnLevelUnload());
     }
 
     private StationModuleType StationModuleTypeFromString(string str)
@@ -225,6 +248,7 @@ public class Sector : MonoBehaviour
         {
             em.AddComponentData(e, new Player { });
         }
+        em.AddComponentData(e, new DestroyOnLevelUnload());
         return e;
     }
 

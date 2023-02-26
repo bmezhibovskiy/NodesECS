@@ -52,7 +52,7 @@
 			"connectedSectorIds": [],
 			"is3d": false,
 			"sideLength": 102.0,
-			"sideNodes": 55,
+			"sideNodes": 35,
 			"startPosition": {"x": 0.0, "y": 0.0, "z": 0.0},
 			"sectorObjectInfos":
 			[

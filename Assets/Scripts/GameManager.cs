@@ -30,6 +30,8 @@ public struct InputState
     public bool ReverseThrustKeyDown;
     public bool RotateLeftKeyDown;
     public bool RotateRightKeyDown;
+    public bool HyperspaceKeyDown;
+
     public void Initialize()
     {
         AfterburnerKeyDown = false;
@@ -37,6 +39,7 @@ public struct InputState
         ReverseThrustKeyDown = false;
         RotateLeftKeyDown = false;
         RotateRightKeyDown = false;
+        HyperspaceKeyDown = false;
     }
 }
 
@@ -48,9 +51,11 @@ public struct EntityPrototypes
 public struct LevelInfo
 {
     public float nodeDistance;
+    public bool needsDestroy;
     public void Initialize(float nodeDistance = 0)
     {
         this.nodeDistance = nodeDistance;
+        this.needsDestroy = false;
     }
 }
 
@@ -108,6 +113,7 @@ public class GameManager : MonoBehaviour
         Globals.sharedInputState.Data.ReverseThrustKeyDown = Input.GetKey(KeyCode.DownArrow);
         Globals.sharedInputState.Data.RotateLeftKeyDown = Input.GetKey(KeyCode.LeftArrow);
         Globals.sharedInputState.Data.RotateRightKeyDown = Input.GetKey(KeyCode.RightArrow);
+        Globals.sharedInputState.Data.HyperspaceKeyDown = Input.GetKey(KeyCode.H);
     }
 
 

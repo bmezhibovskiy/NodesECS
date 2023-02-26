@@ -1,5 +1,6 @@
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Core;
 using Unity.Entities;
 using Unity.Entities.UniversalDelegates;
 using Unity.Jobs;
@@ -15,6 +16,61 @@ public struct GridNode : IComponentData
 }
 
 [BurstCompile]
+public partial struct ResetNodeVelocitiesJob : IJobEntity
+{
+    void Execute(ref GridNode node)
+    {
+        node.velocity = float3.zero;
+    }
+}
+[BurstCompile]
+public partial struct UpdateNodesWithShipsJob : IJobEntity
+{
+    [ReadOnly] public NativeArray<Entity> shipEntities;
+    [ReadOnly] public ComponentLookup<LocalToWorld> transformData;
+    [ReadOnly] public ComponentLookup<Ship> shipData;
+    public EntityCommandBuffer.ParallelWriter ecb;
+
+    void Execute(ref GridNode gridNode, in LocalToWorld t, Entity e, [EntityIndexInQuery] int entityInQueryIndex)
+    {
+        if (gridNode.isDead) { return; }
+
+        float3 pos = t.Position;
+        for(int i = 0; i < shipEntities.Length; ++i)
+        {
+            Entity shipEntity = shipEntities[i];
+            if(!shipData.HasComponent(shipEntity) || !transformData.HasComponent(shipEntity)) { continue; }
+
+            Ship ship = shipData[shipEntity];
+
+            if(!ship.PreparingHyperspace()) { continue; }
+
+            LocalToWorld shipTransform = transformData[shipEntity];
+            float3 shipPos = shipTransform.Position;
+
+            float3 dir = shipPos - pos;
+            float distSq = math.lengthsq(dir);
+
+            if (distSq < ship.size * ship.size)
+            {
+                gridNode.isDead = true;
+
+                ship.hyperspaceNodesGathered += 1;
+                ecb.SetComponent(entityInQueryIndex, shipEntity, ship);
+            }
+            else
+            {
+                float order = 2;
+                float pullStrength = 0.02f;
+                float denom = math.pow(distSq, (order - 1f));
+                gridNode.velocity += (pullStrength / denom) * dir;
+            }
+
+        }
+        
+    }
+}
+[BurstCompile]
 public partial struct UpdateNodesWithStationsJob: IJobEntity
 {
     [ReadOnly] public NativeArray<Entity> stationEntities;
@@ -26,7 +82,6 @@ public partial struct UpdateNodesWithStationsJob: IJobEntity
 
         float3 nodePos = transformData[e].Position;
 
-        gridNode.velocity = float3.zero;
         for (int i = 0; i < stationEntities.Length; ++i)
         {
             Station station = stationData[stationEntities[i]];
@@ -71,12 +126,13 @@ public partial struct UpdateNodesWithStationsJob: IJobEntity
 [BurstCompile]
 public partial struct UpdateNodeTransformsJob: IJobEntity
 {
+    [ReadOnly] public TimeData timeData;
     void Execute(ref LocalToWorld transform, in GridNode gridNode)
     {
         if(gridNode.isBorder || gridNode.isDead) { return; }
 
         float defaultScale = 0.2f;
-        float stretchX = math.length(gridNode.velocity) * 60f;
+        float stretchX = math.length(gridNode.velocity) * 30f;
         float4x4 scale = float4x4.Scale(stretchX + defaultScale, defaultScale, defaultScale);
 
         float angle = math.radians(Vector3.SignedAngle(Vector3.right, gridNode.velocity, Vector3.forward));
@@ -106,16 +162,20 @@ public partial struct NodeSystem : ISystem
 {
     [ReadOnly] private ComponentLookup<LocalToWorld> transformData;
     [ReadOnly] private ComponentLookup<Station> stationData;
+    [ReadOnly] private ComponentLookup<Ship> shipData;
 
     private EntityQuery stationQuery;
+    private EntityQuery shipQuery;
 
     [BurstCompile]
     public void OnCreate(ref SystemState systemState)
     {
         transformData = systemState.GetComponentLookup<LocalToWorld>();
         stationData = systemState.GetComponentLookup<Station>();
+        shipData = systemState.GetComponentLookup<Ship>();
 
         stationQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<Station, LocalToWorld>().Build(ref systemState);
+        shipQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<Ship, LocalToWorld>().Build(ref systemState);
     }
 
     [BurstCompile]
@@ -129,14 +189,20 @@ public partial struct NodeSystem : ISystem
     {
         transformData.Update(ref systemState);
         stationData.Update(ref systemState);
+        shipData.Update(ref systemState);
 
         EndSimulationEntityCommandBufferSystem.Singleton ecbSystem = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>();
         
         NativeArray<Entity> stations = stationQuery.ToEntityArray(systemState.WorldUpdateAllocator);
+        NativeArray<Entity> ships = shipQuery.ToEntityArray(systemState.WorldUpdateAllocator);
+
+        systemState.Dependency = new ResetNodeVelocitiesJob().ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new UpdateNodesWithStationsJob { stationEntities = stations, transformData = transformData, stationData = stationData }.ScheduleParallel(systemState.Dependency);
 
-        systemState.Dependency = new UpdateNodeTransformsJob().ScheduleParallel(systemState.Dependency);
+        systemState.Dependency = new UpdateNodesWithShipsJob { shipEntities = ships, shipData = shipData, transformData = transformData, ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
+
+        systemState.Dependency = new UpdateNodeTransformsJob { timeData = SystemAPI.Time }.ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new RemoveDeadNodesJob { ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
     }

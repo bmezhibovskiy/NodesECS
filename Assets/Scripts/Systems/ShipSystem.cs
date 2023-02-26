@@ -72,6 +72,10 @@ public struct Ship : IComponentData
     public Entity dockedAt;
     public bool isUndocking;
 
+    public int hyperspaceNodesRequired;
+    public int hyperspaceNodesGathered;
+    public int hyperspaceTarget;
+
     public void Rotate(float speed)
     {
         facing = math.rotate(quaternion.RotateZ(speed), facing);
@@ -123,11 +127,37 @@ public struct Ship : IComponentData
 
         prevPos = collisionPos - vel;
     }
+
+    public void StartHyperspace(int target, int nodesRequired)
+    {
+        hyperspaceTarget = target;
+        hyperspaceNodesRequired = nodesRequired;
+        hyperspaceNodesGathered = 0;
+    }
+
+    public bool PreparingHyperspace()
+    {
+        return hyperspaceNodesRequired > 0;
+    }
+
+    public bool ShouldJumpNow()
+    {
+        return PreparingHyperspace() && hyperspaceNodesGathered >= hyperspaceNodesRequired;
+    }
 }
 
 public struct Player: IComponentData
 {
 
+}
+
+[BurstCompile]
+public partial struct UpdateHyperspaceJumpJob: IJobEntity
+{
+    void Execute(in Ship s, in LocalToWorld t)
+    {
+        Debug.Log($"{s.hyperspaceNodesGathered}");
+    }
 }
 
 [BurstCompile]
@@ -196,7 +226,7 @@ public partial struct UpdatePlayerShipJob: IJobEntity
         float dt = timeData.DeltaTime;
         float rspeed = 2f * dt;
         float fspeed = 2f;
-        if (ship.dockedAt == Entity.Null)
+        if (ship.dockedAt == Entity.Null && !ship.PreparingHyperspace())
         {
             if (Globals.sharedInputState.Data.RotateLeftKeyDown)
             {
@@ -224,6 +254,13 @@ public partial struct UpdatePlayerShipJob: IJobEntity
             else
             {
                 ship.isUndocking = true;
+            }
+        }
+        if (Globals.sharedInputState.Data.HyperspaceKeyDown)
+        {
+            if(!ship.PreparingHyperspace())
+            {
+                ship.StartHyperspace(1, 100);
             }
         }
     }
@@ -333,6 +370,7 @@ public partial struct IntegrateShipsJob: IJobEntity
     void Execute(ref Ship ship)
     {
         if(ship.dockedAt != Entity.Null && !ship.isUndocking) { return; }
+        if(ship.PreparingHyperspace()) { return; }
 
         float dt = timeData.DeltaTime;
         float3 shipPos = ship.nextPos;
@@ -405,6 +443,8 @@ public partial struct ShipSystem : ISystem
 
         systemState.Dependency = new UpdateShipsWithStationsJob { stationEntities = stationEntities, stationData = stationData, transformData = transformData, timeData = SystemAPI.Time }.ScheduleParallel(systemState.Dependency);
 
+        //systemState.Dependency = new UpdateHyperspaceJumpJob().ScheduleParallel(systemState.Dependency);
+        
         systemState.Dependency = new IntegrateShipsJob { timeData = SystemAPI.Time, transformData = transformData }.ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new UpdateShipPositionsJob().ScheduleParallel(systemState.Dependency);

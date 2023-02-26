@@ -45,6 +45,8 @@ public partial struct UpdateConnectionsJob : IJobEntity
         if(nc.IsInvalid()) { return; }
 
         float maxDist = 2.0f * Globals.sharedLevelInfo.Data.nodeDistance;
+        if(maxDist <= 0) { return;  }
+
         float3 posA = transformData[nc.a].Position;
         float3 posB = transformData[nc.b].Position;
         
@@ -59,6 +61,7 @@ public partial struct UpdateConnectionsJob : IJobEntity
             ecb.AddComponent(entityInQueryIndex, newNode, new LocalToWorld { Value = localToWorldData });
             ecb.AddComponent(entityInQueryIndex, newNode, new GridNode { velocity = float3.zero, isDead = false, isBorder = false });
             ecb.AddComponent(entityInQueryIndex, newNode, new NeedsConnection { connection = e });
+            ecb.AddComponent(entityInQueryIndex, newNode, new DestroyOnLevelUnload());
 
             if (nodeData[nc.a].isBorder)
             {

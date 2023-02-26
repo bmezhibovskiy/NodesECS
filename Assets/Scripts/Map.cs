@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using Unity.Entities;
+using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.Assertions;
 
@@ -18,11 +20,15 @@ public class Map : MonoBehaviour
     HashSet<SectorConnection> connections = new HashSet<SectorConnection>();
     GameObject currentSector;
     int currentSectorIndex = 0;
+    bool needsLoad = true;
 
     private static string infoFilename = "Map1.json";
     private MapInfo mapInfo;
 
     private Camera mainCamera;
+
+    private EntityManager em;
+    private EntityQuery allEntitiesQuery;
 
     public void Instantiate(Camera mainCamera)
     {
@@ -30,15 +36,34 @@ public class Map : MonoBehaviour
         this.mapInfo = MapInfo.fromJsonFile(infoFilename);
         currentSectorIndex = mapInfo.startingSectorIndex;
         Assert.IsTrue(mapInfo.sectorInfos.Length > currentSectorIndex);
-        LoadSector(currentSectorIndex);
+
+        em = World.DefaultGameObjectInjectionWorld.EntityManager;
+        allEntitiesQuery = new EntityQueryBuilder(Unity.Collections.Allocator.Temp).WithAll<DestroyOnLevelUnload>().Build(em);
     }
 
-    public void LoadSector(int sectorIndex)
+    public void Jump(int newSectorIndex)
     {
-        SectorInfo sectorInfo = mapInfo.sectorInfos[sectorIndex];
-        GameObject newSector = new GameObject("Sector " + sectorIndex.ToString());
+        Destroy(currentSector);
+        currentSectorIndex = newSectorIndex;
+        Globals.sharedLevelInfo.Data.needsDestroy = true;
+        needsLoad = true;
+    }
+    void Update()
+    {
+        int numEntities = allEntitiesQuery.CalculateEntityCount();
+        
+        if (needsLoad && numEntities <= 0)
+        {
+            needsLoad = false;
+            LoadCurrentSector();
+        }
+    }
+    private void LoadCurrentSector()
+    {
+        SectorInfo sectorInfo = mapInfo.sectorInfos[currentSectorIndex];
+        GameObject newSector = new GameObject("Sector " + currentSectorIndex.ToString());
         Sector sectorComponent = newSector.AddComponent<Sector>();
-        sectorComponent.Initialize(sectorInfo, mainCamera);
+        sectorComponent.Initialize(sectorInfo, mainCamera, this);
         currentSector = newSector;
     }
 }
