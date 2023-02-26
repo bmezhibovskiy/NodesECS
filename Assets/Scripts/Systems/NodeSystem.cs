@@ -33,7 +33,7 @@ public partial struct UpdateNodesWithShipsJob : IJobEntity
 
     void Execute(ref GridNode gridNode, in LocalToWorld t, Entity e, [EntityIndexInQuery] int entityInQueryIndex)
     {
-        if (gridNode.isDead) { return; }
+        if (gridNode.isDead || gridNode.isBorder) { return; }
 
         float3 pos = t.Position;
         for(int i = 0; i < shipEntities.Length; ++i)

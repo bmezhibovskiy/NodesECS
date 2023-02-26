@@ -103,19 +103,19 @@
 			"is3d": false,
 			"sideLength": 24.0,
 			"sideNodes": 37,
-			"startPosition": {"x": -1.0, "y": -1.0, "z": 0.0},
+			"startPosition": {"x": -3.5, "y": -1.0, "z": 0.0},
 			"sectorObjectInfos":
 			[
 				{
 					"name": "Foil",
-					"position": {"x": 1.0, "y": 1.0, "z": 0.0},
+					"position": {"x": 2.5, "y": 0.0, "z": 0.0},
 					"size": 1.2,
 					"factionIndex": 0,
 					"moduleInfos":
 					[
 						{
 							"type": "NodePuller",
-							"parameters": [4.0, 0.0, 10.5]
+							"parameters": [4.0, 0.0, 4.0]
 						}
 					]
 				}

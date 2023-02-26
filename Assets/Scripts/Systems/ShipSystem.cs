@@ -181,7 +181,7 @@ public partial struct FindClosestNodesJob : IJobEntity
         for (int i = 0; i < nodes.Length; ++i)
         {
             GridNode nodeComponent = nodeData[nodes[i]];
-            if (nodeComponent.isDead) { continue; }
+            if (nodeComponent.isDead || nodeComponent.isBorder) { continue; }
 
             float3 nodePos = transformData[nodes[i]].Position;
             float newSqMag = math.distancesq(nodePos, shipPos);
