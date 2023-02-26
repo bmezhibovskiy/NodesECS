@@ -2,10 +2,8 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
-using Unity.Rendering;
 using Unity.Transforms;
 using UnityEngine;
-using static UnityEditor.PlayerSettings;
 
 public struct NeedsConnection: IComponentData
 {
@@ -46,12 +44,11 @@ public partial struct UpdateConnectionsJob : IJobEntity
     {
         if(nc.IsInvalid()) { return; }
 
+        float maxDist = 2.0f * Globals.sharedLevelInfo.Data.nodeDistance;
         float3 posA = transformData[nc.a].Position;
         float3 posB = transformData[nc.b].Position;
-
-        Debug.DrawLine(posA, posB, Color.gray);
         
-        if (math.distancesq(posA, posB) > 1.3f * 1.3f)
+        if (math.distancesq(posA, posB) > maxDist * maxDist)
         {
             float3 newPos = 0.5f * (posA + posB);
 

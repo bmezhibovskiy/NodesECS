@@ -3,9 +3,8 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using Unity.Collections;
+using static UnityEngine.Rendering.DebugUI;
 using Unity.Rendering;
-using System.Collections.Generic;
-using System.Numerics;
 
 public class Sector : MonoBehaviour
 {
@@ -46,6 +45,8 @@ public class Sector : MonoBehaviour
         this.nodeDistance = sideLength / (float)numSideNodes;
         this.nodeOffset = new float3(0, nodeDistance, 0);
 
+        Globals.sharedLevelInfo.Data.Initialize(nodeDistance);
+
         this.em = World.DefaultGameObjectInjectionWorld.EntityManager;
 
         GenerateNodes();
@@ -65,7 +66,7 @@ public class Sector : MonoBehaviour
 
     void OnGUI()
     {
-        GUI.Label(new Rect(10, 10, 100, 20), "Hello World!");
+        GUI.Label(new Rect(10, 10, 100, 20), displayName);
     }
 
     private void GenerateNodes()
@@ -156,6 +157,10 @@ public class Sector : MonoBehaviour
 
         em.AddComponentData(e, new GridNode { velocity = float3.zero, isDead = false, isBorder = isBorder });
         em.AddComponentData(e, new LocalToWorld { Value = localToWorldData });
+        if(isBorder)
+        {
+            em.AddComponentData(e, new HDRPMaterialPropertyBaseColor { Value = new float4(1, 0, 0, 1)});
+        }
     }
 
     private void AddSectorObject(string name, float3 pos, float size, int factionIndex, SectorObjectModuleInfo[] moduleInfos)

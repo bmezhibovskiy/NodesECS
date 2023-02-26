@@ -7,8 +7,8 @@
 			"name": "Pewter",
 			"connectedSectorIds": [],
 			"is3d": false,
-			"sideLength": 32.0,
-			"sideNodes": 47,
+			"sideLength": 48.0,
+			"sideNodes": 65,
 			"startPosition": {"x": 0.0, "y": 0.0, "z": 0.0},
 			"sectorObjectInfos":
 			[
@@ -25,10 +25,6 @@
 						{
 							"type": "NodeEater",
 							"parameters": []
-						},
-						{
-							"type": "ShipRepellent",
-							"parameters": [ 4.0, 200.0, 0.0 ]
 						}
 					]
 				},

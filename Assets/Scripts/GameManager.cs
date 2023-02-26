@@ -11,12 +11,15 @@ public static class Globals
 {
     public readonly static SharedStatic<InputState> sharedInputState = SharedStatic<InputState>.GetOrCreate<InputStateKey>();
     public readonly static SharedStatic<EntityPrototypes> sharedPrototypes = SharedStatic<EntityPrototypes>.GetOrCreate<EntityPrototypesKey>();
+    public readonly static SharedStatic<LevelInfo> sharedLevelInfo = SharedStatic<LevelInfo>.GetOrCreate<LevelInfoKey>();
     private class InputStateKey { }
     private class EntityPrototypesKey { }
+    private class LevelInfoKey { }
 
     static Globals()
     {
         sharedInputState.Data.Initialize();
+        sharedLevelInfo.Data.Initialize();
     }
 }
 
@@ -42,9 +45,13 @@ public struct EntityPrototypes
     public Entity nodePrototype;
 }
 
-public enum GameEntityType
+public struct LevelInfo
 {
-    Node
+    public float nodeDistance;
+    public void Initialize(float nodeDistance = 0)
+    {
+        this.nodeDistance = nodeDistance;
+    }
 }
 
 public class GameManager : MonoBehaviour

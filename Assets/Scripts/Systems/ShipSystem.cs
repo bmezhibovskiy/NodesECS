@@ -107,7 +107,7 @@ public struct Ship : IComponentData
     public void HandleCollisionAt(float3 collisionPos, float3 normal, float bounciness = 0.5f)
     {
         nextPos = collisionPos;
-        if (math.distancesq(vel,float3.zero) < 0.00002f)
+        if (math.lengthsq(vel) < 0.00002f)
         {
             //Velocity too small, set to 0 instead of bouncing forever, which can cause instability
             prevPos = collisionPos;

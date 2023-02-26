@@ -69,22 +69,21 @@ public partial struct UpdateNodesWithStationsJob: IJobEntity
 }
 
 [BurstCompile]
-public partial struct UpdateNodePositionsJob: IJobEntity
+public partial struct UpdateNodeTransformsJob: IJobEntity
 {
     void Execute(ref LocalToWorld transform, in GridNode gridNode)
     {
         if(gridNode.isBorder || gridNode.isDead) { return; }
 
         float defaultScale = 0.2f;
-        float s = math.distance(gridNode.velocity, float3.zero) * 100.0f;
-        float3 n = math.normalize(gridNode.velocity);
+        float stretchX = math.length(gridNode.velocity) * 60f;
+        float4x4 scale = float4x4.Scale(stretchX + defaultScale, defaultScale, defaultScale);
 
-        float angle = math.radians(Vector3.SignedAngle(Vector3.right, n, Vector3.forward));
+        float angle = math.radians(Vector3.SignedAngle(Vector3.right, gridNode.velocity, Vector3.forward));
         float4x4 rotation = float4x4.RotateZ(angle);
-        float3 newPos = new float3(transform.Value.c3.x, transform.Value.c3.y, transform.Value.c3.z) + gridNode.velocity;
-        float4x4 translation = float4x4.Translate(newPos);
-        float4x4 scale = float4x4.Scale(s + defaultScale, defaultScale, defaultScale);
-        
+
+        float4x4 translation = float4x4.Translate(transform.Position + gridNode.velocity);
+
         transform.Value = math.mul(translation, math.mul(rotation, scale));
     }
 }
@@ -137,7 +136,7 @@ public partial struct NodeSystem : ISystem
 
         systemState.Dependency = new UpdateNodesWithStationsJob { stationEntities = stations, transformData = transformData, stationData = stationData }.ScheduleParallel(systemState.Dependency);
 
-        systemState.Dependency = new UpdateNodePositionsJob().ScheduleParallel(systemState.Dependency);
+        systemState.Dependency = new UpdateNodeTransformsJob().ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new RemoveDeadNodesJob { ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
     }
