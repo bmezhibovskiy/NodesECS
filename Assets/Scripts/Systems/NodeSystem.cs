@@ -131,7 +131,7 @@ public partial struct UpdateNodeTransformsJob: IJobEntity
     {
         if(gridNode.isBorder || gridNode.isDead) { return; }
 
-        float defaultScale = 0.2f;
+        float defaultScale = Globals.sharedLevelInfo.Data.nodeSize;
         float stretchX = math.length(gridNode.velocity) * 30f;
         float4x4 scale = float4x4.Scale(stretchX + defaultScale, defaultScale, defaultScale);
 

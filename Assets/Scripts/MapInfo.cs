@@ -26,6 +26,7 @@ public struct SectorInfo
     public string name;
     public int[] connectedSectorIds;
     public bool is3d;
+    public float nodeSize;
     public float sideLength;
     public int sideNodes;
     public Vector3 startPosition;

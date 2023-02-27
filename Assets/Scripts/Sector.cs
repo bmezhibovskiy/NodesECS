@@ -3,8 +3,9 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using Unity.Collections;
-using static UnityEngine.Rendering.DebugUI;
 using Unity.Rendering;
+using System.Collections.Generic;
+using static UnityEditor.PlayerSettings;
 
 public struct DestroyOnLevelUnload: IComponentData
 {
@@ -15,6 +16,8 @@ public class Sector : MonoBehaviour
 {
     Map parent;
     Camera mainCamera;
+    Dictionary<Entity, GameObject> shipSpotlights = new Dictionary<Entity, GameObject>();
+    Dictionary<Entity, GameObject> stationPointLights = new Dictionary<Entity, GameObject>();
 
     string displayName;
 
@@ -54,7 +57,7 @@ public class Sector : MonoBehaviour
         this.nodeDistance = sideLength / (float)numSideNodes;
         this.nodeOffset = new float3(0, nodeDistance, 0);
 
-        Globals.sharedLevelInfo.Data.Initialize(info.sectorId, nodeDistance);
+        Globals.sharedLevelInfo.Data.Initialize(info.sectorId, nodeDistance, info.nodeSize);
 
         this.em = World.DefaultGameObjectInjectionWorld.EntityManager;
 
@@ -76,6 +79,8 @@ public class Sector : MonoBehaviour
 
     void Update()
     {
+        UpdateLights();
+
         if (isPlayerJumping) { return; }
 
         float3 shipPos = em.GetComponentData<LocalToWorld>(playerEntity).Position;
@@ -88,7 +93,18 @@ public class Sector : MonoBehaviour
             int newSectorId = ship.hyperspaceTarget;
             parent.Jump(newSectorId);
         }
-        
+    }
+
+    private void OnDestroy()
+    {
+        foreach(KeyValuePair<Entity, GameObject> pair in stationPointLights)
+        {
+            Destroy(pair.Value);
+        }
+        foreach (KeyValuePair<Entity, GameObject> pair in shipSpotlights)
+        {
+            Destroy(pair.Value);
+        }
     }
 
     void OnGUI()
@@ -172,7 +188,7 @@ public class Sector : MonoBehaviour
     {
         Entity e = em.Instantiate(Globals.sharedPrototypes.Data.nodePrototype);
 
-        float scale = 0.2f;
+        float scale = Globals.sharedLevelInfo.Data.nodeSize;
         float4x4 localToWorldData = math.mul(float4x4.Translate(pos), float4x4.Scale(scale));
 
         em.AddComponentData(e, new GridNode { velocity = float3.zero, isDead = false, isBorder = isBorder });
@@ -201,8 +217,21 @@ public class Sector : MonoBehaviour
             }
             modules.Add(module);
         }
-        em.AddComponentData(e, new Station { displayName = new FixedString128Bytes(name), size = size, factionIndex = factionIndex, modules = modules });
+        Station s = new Station { displayName = new FixedString128Bytes(name), size = size, factionIndex = factionIndex, modules = modules };
+        em.AddComponentData(e, s);
         em.AddComponentData(e, new DestroyOnLevelUnload());
+        AddStationPointLight(e, s, pos);
+    }
+
+    private void AddStationPointLight(Entity e, Station s, float3 pos)
+    {
+        GameObject lightObject = new GameObject("Station Light");
+        Light light = lightObject.AddComponent<Light>();
+        light.type = LightType.Point;
+        light.intensity = 250;
+        light.color = Color.white;
+        light.transform.position = pos;
+        stationPointLights[e] = lightObject;
     }
 
     private StationModuleType StationModuleTypeFromString(string str)
@@ -231,7 +260,7 @@ public class Sector : MonoBehaviour
 
         Entity e = em.CreateEntity(ea);
         em.AddComponentData(e, new LocalToWorld { Value = float4x4.Translate(pos) });
-        em.AddComponentData(e, new Ship
+        Ship s = new Ship
         {
             size = 0.25f,
             closestNodes = ClosestNodes.empty,
@@ -243,13 +272,70 @@ public class Sector : MonoBehaviour
             vel = float3.zero,
             dockedAt = Entity.Null,
             isUndocking = false
-        });
+        };
+        em.AddComponentData(e, s);
         if (isPlayer)
         {
             em.AddComponentData(e, new Player { });
         }
         em.AddComponentData(e, new DestroyOnLevelUnload());
+        AddShipSpotlight(e, s, pos);
         return e;
+    }
+
+    private void AddShipSpotlight(Entity e, Ship s, float3 pos)
+    {
+        GameObject lightObject = new GameObject("Ship Light");
+        Light light = lightObject.AddComponent<Light>();
+        light.type = LightType.Spot;
+        light.intensity = 250;
+        light.color = Color.white;
+        light.spotAngle = 90;
+        light.innerSpotAngle = 45;
+        shipSpotlights[e] = lightObject;
+    }
+
+    public void UpdateLights()
+    {
+        List<Entity> toRemove = new List<Entity>();
+        foreach(KeyValuePair<Entity, GameObject> pair in shipSpotlights)
+        {
+            if(em.HasComponent<LocalToWorld>(pair.Key) && em.HasComponent<Ship>(pair.Key))
+            {
+                float3 pos = em.GetComponentData<LocalToWorld>(pair.Key).Position;
+                float3 facing = em.GetComponentData<Ship>(pair.Key).facing;
+                float3 heightVec = new float3(0, 0, 0.4f);
+                pair.Value.transform.position = pos + heightVec;
+                pair.Value.transform.forward = facing - heightVec;
+            }
+            else
+            {
+                toRemove.Add(pair.Key);
+            }
+        }
+        foreach(Entity removeThis in toRemove)
+        {
+            Destroy(shipSpotlights[removeThis]);
+            shipSpotlights[removeThis] = null;
+        }
+
+        toRemove = new List<Entity>();
+        foreach (KeyValuePair<Entity, GameObject> pair in stationPointLights)
+        {
+            if (em.HasComponent<LocalToWorld>(pair.Key) && em.HasComponent<Station>(pair.Key))
+            {
+                //No update needed, since stations don't move
+            }
+            else
+            {
+                toRemove.Add(pair.Key);
+            }
+        }
+        foreach (Entity removeThis in toRemove)
+        {
+            Destroy(stationPointLights[removeThis]);
+            stationPointLights[removeThis] = null;
+        }
     }
 
     private bool IsBorder(int[] raw)

@@ -7,6 +7,7 @@
 			"name": "Pewter",
 			"connectedSectorIds": [],
 			"is3d": false,
+			"nodeSize": 0.1,
 			"sideLength": 48.0,
 			"sideNodes": 65,
 			"startPosition": {"x": 0.0, "y": 0.0, "z": 0.0},
@@ -51,21 +52,28 @@
 			"name": "Deep Space Sector 112b-2",
 			"connectedSectorIds": [],
 			"is3d": false,
+			"nodeSize": 0.1,
 			"sideLength": 102.0,
 			"sideNodes": 35,
-			"startPosition": {"x": 0.0, "y": 0.0, "z": 0.0},
-			"sectorObjectInfos":
-			[
+			"startPosition": {
+				"x": 0.0,
+				"y": 0.0,
+				"z": 0.0
+			},
+			"sectorObjectInfos": [
 				{
 					"name": "GO AWAY!",
-					"position": {"x": 5.0, "y": -5.0, "z": 0.0},
+					"position": {
+						"x": 5.0,
+						"y": -5.0,
+						"z": 0.0
+					},
 					"size": 1.1,
 					"factionIndex": 0,
-					"moduleInfos":
-					[
+					"moduleInfos": [
 						{
 							"type": "ShipRepellent",
-							"parameters": [4.0, 200.0, 0.0]
+							"parameters": [ 4.0, 200.0, 0.0 ]
 						}
 					]
 				}
@@ -76,21 +84,28 @@
 			"name": "Iron",
 			"connectedSectorIds": [],
 			"is3d": true,
+			"nodeSize": 0.1,
 			"sideLength": 14.0,
 			"sideNodes": 13,
-			"startPosition": {"x": -1.0, "y": -1.0, "z": 0.0},
-			"sectorObjectInfos":
-			[
+			"startPosition": {
+				"x": -1.0,
+				"y": -1.0,
+				"z": 0.0
+			},
+			"sectorObjectInfos": [
 				{
 					"name": "Iron Lady",
-					"position": {"x": 1.0, "y": 1.0, "z": 0.0},
+					"position": {
+						"x": 1.0,
+						"y": 1.0,
+						"z": 0.0
+					},
 					"size": 0.8,
 					"factionIndex": 0,
-					"moduleInfos":
-					[
+					"moduleInfos": [
 						{
 							"type": "NodePuller",
-							"parameters": [2.5, 4.5, 0.0]
+							"parameters": [ 2.5, 4.5, 0.0 ]
 						}
 					]
 				}
@@ -101,21 +116,28 @@
 			"name": "Aluminum",
 			"connectedSectorIds": [],
 			"is3d": false,
+			"nodeSize": 0.1,
 			"sideLength": 24.0,
 			"sideNodes": 37,
-			"startPosition": {"x": -3.5, "y": -1.0, "z": 0.0},
-			"sectorObjectInfos":
-			[
+			"startPosition": {
+				"x": -3.5,
+				"y": -1.0,
+				"z": 0.0
+			},
+			"sectorObjectInfos": [
 				{
 					"name": "Foil",
-					"position": {"x": 2.5, "y": 0.0, "z": 0.0},
+					"position": {
+						"x": 2.5,
+						"y": 0.0,
+						"z": 0.0
+					},
 					"size": 1.2,
 					"factionIndex": 0,
-					"moduleInfos":
-					[
+					"moduleInfos": [
 						{
 							"type": "NodePuller",
-							"parameters": [4.0, 0.0, 4.0]
+							"parameters": [ 4.0, 0.0, 4.0 ]
 						}
 					]
 				}

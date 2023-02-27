@@ -52,11 +52,13 @@ public struct LevelInfo
 {
     public int sectorIndex;
     public float nodeDistance;
+    public float nodeSize;
     public bool needsDestroy;
-    public void Initialize(int sectorIndex = 0, float nodeDistance = 0)
+    public void Initialize(int sectorIndex = 0, float nodeDistance = 0, float nodeSize = 0)
     {
         this.sectorIndex = sectorIndex;
         this.nodeDistance = nodeDistance;
+        this.nodeSize = nodeSize;
         this.needsDestroy = false;
     }
 }

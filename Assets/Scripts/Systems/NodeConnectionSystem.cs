@@ -56,7 +56,7 @@ public partial struct UpdateConnectionsJob : IJobEntity
 
             Entity newNode = ecb.Instantiate(entityInQueryIndex, Globals.sharedPrototypes.Data.nodePrototype);
 
-            float scale = 0.2f;
+            float scale = Globals.sharedLevelInfo.Data.nodeSize;
             float4x4 localToWorldData = math.mul(float4x4.Translate(newPos), float4x4.Scale(scale));
             ecb.AddComponent(entityInQueryIndex, newNode, new LocalToWorld { Value = localToWorldData });
             ecb.AddComponent(entityInQueryIndex, newNode, new GridNode { velocity = float3.zero, isDead = false, isBorder = false });
