@@ -41,7 +41,7 @@ public struct MapInfo
 
     public static MapInfo fromJsonFile(string fileName)
     {
-        TextAsset textAsset = (TextAsset)AssetDatabase.LoadAssetAtPath("Assets/Config/" + fileName, typeof(TextAsset));
+        TextAsset textAsset = (TextAsset)AssetDatabase.LoadAssetAtPath("Assets/Resources/Config/" + fileName, typeof(TextAsset));
         return JsonUtility.FromJson<MapInfo>(textAsset.text);
     }
 }

@@ -63,6 +63,27 @@ public struct LevelInfo
     }
 }
 
+public class PartRenderInfo
+{
+    public Mesh mesh;
+    public Material material;
+    public Transform transform;
+    public PartRenderInfo(Mesh mesh, Material material, Transform transform)
+    {
+        this.mesh = mesh;
+        this.material = material;
+        this.transform = transform;
+    }
+}
+public class PartsRenderInfo
+{
+    public Dictionary<string, PartRenderInfo> parts = new Dictionary<string, PartRenderInfo>();
+    public void AddPart(string name, PartRenderInfo info)
+    {
+        parts[name] = info;
+    }
+}
+
 public class GameManager : MonoBehaviour
 {
     [SerializeField]
@@ -74,6 +95,8 @@ public class GameManager : MonoBehaviour
     [SerializeField]
     Material nodeMaterial;
 
+    Dictionary<string, PartsRenderInfo> partsRenderInfos = new Dictionary<string, PartsRenderInfo>();
+
     GameObject mapObject;
 
     // Start is called before the first frame update
@@ -81,12 +104,34 @@ public class GameManager : MonoBehaviour
     {
         GraphicsSettings.useScriptableRenderPipelineBatching = true;
 
+        Dictionary<string, Material> materials = new Dictionary<string, Material>();
+        materials["Cockpit"] = Resources.Load<Material>("Art/Ships/TradeSmall/TradeSmall_Cockpit");
+        materials["Engines"] = Resources.Load<Material>("Art/Ships/TradeSmall/TradeSmall_Engines");
+        materials["Main Hull"] = Resources.Load<Material>("Art/Ships/TradeSmall/TradeSmall_Main Hull");
+        materials["Rear Hull Piece"] = Resources.Load<Material>("Art/Ships/TradeSmall/TradeSmall_Rear Hull Piece");
+        materials["Square Engines"] = Resources.Load<Material>("Art/Ships/TradeSmall/TradeSmall_Square Engines");
+        materials["Wings"] = Resources.Load<Material>("Art/Ships/TradeSmall/TradeSmall_Wings");
+        PartsRenderInfo pri = new PartsRenderInfo();
+        GameObject o = Resources.Load("Art/Ships/TradeSmall/TradeSmall_Ship") as GameObject;
+        for (int i = 0; i < o.transform.childCount; ++i)
+        {
+            Transform childTransform = o.transform.GetChild(i);
+            GameObject child = childTransform.gameObject;
+            Mesh mesh = child.GetComponent<MeshFilter>().sharedMesh;
+            Material mat = materials[child.name];
+            if (mat != null)
+            {
+                pri.AddPart(child.name, new PartRenderInfo(mesh, mat, childTransform));
+            }
+        }
+        partsRenderInfos["ship"] = pri;
+
         SetUpPrototypes();
 
         mapObject = new GameObject("Map");
         Map map = mapObject.AddComponent<Map>();
 
-        map.Instantiate(mainCamera);
+        map.Instantiate(mainCamera, partsRenderInfos);
     }
 
     private void SetUpPrototypes()

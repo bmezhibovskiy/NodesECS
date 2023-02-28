@@ -1,0 +1,39 @@
+{
+    "ships": [
+        {
+            "name": "Scaphe",
+            "thrust": 2.0,
+            "rotationSpeed": 4.0,
+            "initialScale": 0.1,
+            "initialRotationDegrees": [90, 0, 180],
+            "path": "Art/Ships/TradeSmall",
+            "meshBundle": "TradeSmall_Ship",
+            "parts": [
+                {
+                    "mesh": "Cockpit",
+                    "material": "TradeSmall_Cockpit"
+                },
+                {
+                    "mesh": "Engines",
+                    "material": "TradeSmall_Engines"
+                },
+                {
+                    "mesh": "Main Hull",
+                    "material": "TradeSmall_Main Hull"
+                },
+                {
+                    "mesh": "Rear Hull Piece",
+                    "material": "TradeSmall_Rear Hull Piece"
+                },
+                {
+                    "mesh": "Square Engines",
+                    "material": "TradeSmall_Square Engines"
+                },
+                {
+                    "mesh": "Wings",
+                    "material": "TradeSmall_Wings"
+                }
+            ]
+        }
+    ]
+}

@@ -5,7 +5,7 @@ using Unity.Transforms;
 using Unity.Collections;
 using Unity.Rendering;
 using System.Collections.Generic;
-using static UnityEditor.PlayerSettings;
+using UnityEngine.Rendering;
 
 public struct DestroyOnLevelUnload: IComponentData
 {
@@ -16,6 +16,7 @@ public class Sector : MonoBehaviour
 {
     Map parent;
     Camera mainCamera;
+    private Dictionary<string, PartsRenderInfo> partsRenderInfos;
     Dictionary<Entity, GameObject> shipSpotlights = new Dictionary<Entity, GameObject>();
     Dictionary<Entity, GameObject> stationPointLights = new Dictionary<Entity, GameObject>();
 
@@ -40,7 +41,7 @@ public class Sector : MonoBehaviour
     }
 
 
-    public void Initialize(SectorInfo info, Camera mainCamera, Map parent)
+    public void Initialize(SectorInfo info, Camera mainCamera, Map parent, Dictionary<string, PartsRenderInfo> partsRenderInfos)
     {
         this.displayName = info.name;
         this.is3d = info.is3d;
@@ -50,6 +51,7 @@ public class Sector : MonoBehaviour
 
         this.parent = parent;
         this.mainCamera = mainCamera;
+        this.partsRenderInfos = partsRenderInfos;
 
         mainCamera.orthographic = !is3d;
 
@@ -267,9 +269,13 @@ public class Sector : MonoBehaviour
             nodeOffset = float3.zero,
             prevPos = pos,
             nextPos = pos,
-            facing = new float3(0, 1, 0),
+            facing = new float3(1, 0, 0),
             accel = float3.zero,
             vel = float3.zero,
+            thrust = 2.0f,
+            rotationSpeed = 4.0f,
+            initialScale = float4x4.Scale(0.1f),
+            initialRotation = math.mul(float4x4.RotateX(math.radians(90)), math.mul(float4x4.RotateY(math.radians(0)), float4x4.RotateZ(math.radians(180)))),
             dockedAt = Entity.Null,
             isUndocking = false
         };
@@ -280,6 +286,21 @@ public class Sector : MonoBehaviour
         }
         em.AddComponentData(e, new DestroyOnLevelUnload());
         AddShipSpotlight(e, s, pos);
+
+        foreach(KeyValuePair<string, PartRenderInfo> pair in partsRenderInfos["ship"].parts)
+        {
+            Entity child = em.CreateEntity();
+            em.AddComponentData(child, new Parent { Value = e });
+            float4x4 transform = pair.Value.transform.localToWorldMatrix;
+            em.AddComponentData(child, new LocalToWorld { Value = transform });
+            em.AddComponentData(child, new RelativeTransform { Value = transform, lastParentValue = float4x4.zero });
+            em.AddComponentData(child, new DestroyOnLevelUnload());
+
+            RenderMeshDescription rmd = new RenderMeshDescription(ShadowCastingMode.On, true);
+            RenderMeshArray renderMeshArray = new RenderMeshArray(new Material[] { pair.Value.material }, new Mesh[] { pair.Value.mesh });
+            RenderMeshUtility.AddComponents(child, em, rmd, renderMeshArray, MaterialMeshInfo.FromRenderMeshArrayIndices(0, 0));
+        }
+
         return e;
     }
 

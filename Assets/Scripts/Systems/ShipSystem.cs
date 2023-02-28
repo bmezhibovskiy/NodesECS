@@ -68,6 +68,10 @@ public struct Ship : IComponentData
     public float3 facing;
     public float3 accel;
     public float3 vel;//derived from translation and prevPos
+    public float4x4 initialScale;
+    public float4x4 initialRotation;
+    public float thrust;
+    public float rotationSpeed;
 
     public Entity dockedAt;
     public bool isUndocking;
@@ -152,15 +156,6 @@ public struct Player: IComponentData
 }
 
 [BurstCompile]
-public partial struct UpdateHyperspaceJumpJob: IJobEntity
-{
-    void Execute(in Ship s, in LocalToWorld t)
-    {
-        Debug.Log($"{s.hyperspaceNodesGathered}");
-    }
-}
-
-[BurstCompile]
 public partial struct FindClosestNodesJob : IJobEntity
 {
     [ReadOnly] public ComponentLookup<LocalToWorld> transformData;
@@ -224,8 +219,8 @@ public partial struct UpdatePlayerShipJob: IJobEntity
     void Execute(ref Ship ship, Player p)
     {
         float dt = timeData.DeltaTime;
-        float rspeed = 2f * dt;
-        float fspeed = 2f;
+        float rspeed = ship.rotationSpeed * dt;
+        float fspeed = ship.thrust;
         if (ship.dockedAt == Entity.Null && !ship.PreparingHyperspace())
         {
             if (Globals.sharedInputState.Data.RotateLeftKeyDown)
@@ -388,24 +383,14 @@ public partial struct IntegrateShipsJob: IJobEntity
 }
 
 [BurstCompile]
-public partial struct UpdateShipPositionsJob : IJobEntity
+public partial struct UpdateShipTransformsJob : IJobEntity
 {
     void Execute(ref LocalToWorld t, in Ship ship)
     {
-        t.Value.c3 = new float4(ship.nextPos, 1.0f);
-    }
-}
-
-[BurstCompile]
-public partial struct RenderShipsJob : IJobEntity
-{
-    void Execute(in Ship ship, in LocalToWorld t)
-    {
-        float3 shipPos = t.Position;
-        Debug.DrawRay(shipPos, ship.facing, Color.green);
-        Debug.DrawRay(shipPos, ship.vel * 60f, Color.red);
-        Color c = ship.dockedAt == Entity.Null ? Color.green : Color.blue;
-        Utils.DebugDrawCircle(shipPos, ship.size, c, 10);
+        float4x4 translation = float4x4.Translate(ship.nextPos);
+        float angle = math.radians(Vector3.SignedAngle(Vector3.right, ship.facing, Vector3.forward));
+        float4x4 rotation = float4x4.RotateZ(angle);
+        t.Value = math.mul(translation, math.mul(math.mul(rotation, ship.initialRotation), ship.initialScale));
     }
 }
 
@@ -452,11 +437,9 @@ public partial struct ShipSystem : ISystem
         
         systemState.Dependency = new IntegrateShipsJob { timeData = SystemAPI.Time, transformData = transformData }.ScheduleParallel(systemState.Dependency);
 
-        systemState.Dependency = new UpdateShipPositionsJob().ScheduleParallel(systemState.Dependency);
+        systemState.Dependency = new UpdateShipTransformsJob().ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new FindClosestNodesJob { transformData = transformData, nodes = nodes, nodeData = nodeData }.ScheduleParallel(systemState.Dependency);
-
-        systemState.Dependency = new RenderShipsJob().ScheduleParallel(systemState.Dependency);
     }
 }
 
