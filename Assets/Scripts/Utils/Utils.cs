@@ -2,6 +2,7 @@ using UnityEngine;
 using Unity.Mathematics;
 using System.Drawing;
 using UnityEngine.UIElements;
+using UnityEditor;
 
 public class Utils
 {
@@ -58,6 +59,11 @@ public class Utils
         //Some other strange intersection case where the start is inside or past the circle
         float3 dir = start - center;
         return center + math.normalize(dir) * r;
+    }
+    public static T FromJsonFile<T>(string fileName)
+    {
+        TextAsset textAsset = (TextAsset)AssetDatabase.LoadAssetAtPath("Assets/Resources/Config/" + fileName, typeof(TextAsset));
+        return JsonUtility.FromJson<T>(textAsset.text);
     }
 
     //Adapted from https://dev-tut.com/2022/unity-draw-a-circle-part2/

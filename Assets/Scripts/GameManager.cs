@@ -6,6 +6,7 @@ using Unity.Rendering;
 using UnityEngine.Rendering;
 using Unity.Mathematics;
 using Unity.Transforms;
+using Unity.Assertions;
 
 public static class Globals
 {
@@ -95,6 +96,8 @@ public class GameManager : MonoBehaviour
     [SerializeField]
     Material nodeMaterial;
 
+    ShipInfos shipInfos;
+
     Dictionary<string, PartsRenderInfo> partsRenderInfos = new Dictionary<string, PartsRenderInfo>();
 
     GameObject mapObject;
@@ -104,34 +107,38 @@ public class GameManager : MonoBehaviour
     {
         GraphicsSettings.useScriptableRenderPipelineBatching = true;
 
-        Dictionary<string, Material> materials = new Dictionary<string, Material>();
-        materials["Cockpit"] = Resources.Load<Material>("Art/Ships/TradeSmall/TradeSmall_Cockpit");
-        materials["Engines"] = Resources.Load<Material>("Art/Ships/TradeSmall/TradeSmall_Engines");
-        materials["Main Hull"] = Resources.Load<Material>("Art/Ships/TradeSmall/TradeSmall_Main Hull");
-        materials["Rear Hull Piece"] = Resources.Load<Material>("Art/Ships/TradeSmall/TradeSmall_Rear Hull Piece");
-        materials["Square Engines"] = Resources.Load<Material>("Art/Ships/TradeSmall/TradeSmall_Square Engines");
-        materials["Wings"] = Resources.Load<Material>("Art/Ships/TradeSmall/TradeSmall_Wings");
-        PartsRenderInfo pri = new PartsRenderInfo();
-        GameObject o = Resources.Load("Art/Ships/TradeSmall/TradeSmall_Ship") as GameObject;
-        for (int i = 0; i < o.transform.childCount; ++i)
+        shipInfos = ShipInfos.FromJsonFile("Ships.json");
+
+        foreach(ShipInfo shipInfo in shipInfos.ships)
         {
-            Transform childTransform = o.transform.GetChild(i);
-            GameObject child = childTransform.gameObject;
-            Mesh mesh = child.GetComponent<MeshFilter>().sharedMesh;
-            Material mat = materials[child.name];
-            if (mat != null)
+            Dictionary<string, Material> materials = new Dictionary<string, Material>();
+            foreach (ShipPartInfo partInfo in shipInfo.parts)
             {
-                pri.AddPart(child.name, new PartRenderInfo(mesh, mat, childTransform));
+                string materialPath = shipInfo.path + "/" + partInfo.material;
+                materials[partInfo.mesh] = Resources.Load<Material>(materialPath);
             }
+            PartsRenderInfo pri = new PartsRenderInfo();
+            string meshBundlePath = shipInfo.path + "/" + shipInfo.meshBundle;
+            GameObject shipObject = Resources.Load(meshBundlePath) as GameObject;
+            for (int i = 0; i < shipObject.transform.childCount; ++i)
+            {
+                Transform childTransform = shipObject.transform.GetChild(i);
+                GameObject child = childTransform.gameObject;
+                Mesh mesh = child.GetComponent<MeshFilter>().sharedMesh;
+                Material mat = materials[child.name];
+                Assert.IsNotNull(mat);
+                pri.AddPart(child.name, new PartRenderInfo(mesh, mat, childTransform));
+                
+            }
+            partsRenderInfos[shipInfo.name] = pri;
         }
-        partsRenderInfos["ship"] = pri;
 
         SetUpPrototypes();
 
         mapObject = new GameObject("Map");
         Map map = mapObject.AddComponent<Map>();
 
-        map.Instantiate(mainCamera, partsRenderInfos);
+        map.Instantiate(mainCamera, partsRenderInfos, shipInfos);
     }
 
     private void SetUpPrototypes()

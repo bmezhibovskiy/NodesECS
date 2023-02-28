@@ -24,6 +24,7 @@ public class Map : MonoBehaviour
 
     private static string infoFilename = "Map1.json";
     private MapInfo mapInfo;
+    private ShipInfos shipInfos;
 
     private Camera mainCamera;
 
@@ -32,11 +33,12 @@ public class Map : MonoBehaviour
 
     Dictionary<string, PartsRenderInfo> partsRenderInfos;
 
-    public void Instantiate(Camera mainCamera, Dictionary<string, PartsRenderInfo> partsRenderInfos)
+    public void Instantiate(Camera mainCamera, Dictionary<string, PartsRenderInfo> partsRenderInfos, ShipInfos shipInfos)
     {
         this.mainCamera = mainCamera;
         this.partsRenderInfos = partsRenderInfos;
-        this.mapInfo = MapInfo.fromJsonFile(infoFilename);
+        this.shipInfos = shipInfos;
+        this.mapInfo = MapInfo.FromJsonFile(infoFilename);
         currentSectorIndex = mapInfo.startingSectorIndex;
         Assert.IsTrue(mapInfo.sectorInfos.Length > currentSectorIndex);
 
@@ -67,7 +69,7 @@ public class Map : MonoBehaviour
         SectorInfo sectorInfo = mapInfo.sectorInfos[currentSectorIndex];
         GameObject newSector = new GameObject("Sector " + currentSectorIndex.ToString());
         Sector sectorComponent = newSector.AddComponent<Sector>();
-        sectorComponent.Initialize(sectorInfo, mainCamera, this, partsRenderInfos);
+        sectorComponent.Initialize(sectorInfo, mainCamera, this, partsRenderInfos, shipInfos);
         currentSector = newSector;
     }
 }

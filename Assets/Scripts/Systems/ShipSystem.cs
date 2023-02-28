@@ -200,15 +200,6 @@ public partial struct FindClosestNodesJob : IJobEntity
             }
         }
         s.nodeOffset = shipPos - s.AverageNodePos(transformData);
-
-
-        for (int i = 0; i < ClosestNodes.numClosestNodes; ++i)
-        {
-            if(transformData.HasComponent(s.closestNodes.Get(i)))
-            {
-                Debug.DrawLine(shipPos, transformData[s.closestNodes.Get(i)].Position);
-            }
-        }
     }
 }
 

@@ -7,7 +7,7 @@
 			"name": "Pewter",
 			"connectedSectorIds": [],
 			"is3d": false,
-			"nodeSize": 0.1,
+			"nodeSize": 0.16,
 			"sideLength": 48.0,
 			"sideNodes": 65,
 			"startPosition": {"x": 0.0, "y": 0.0, "z": 0.0},

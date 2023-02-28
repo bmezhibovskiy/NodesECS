@@ -17,6 +17,7 @@ public class Sector : MonoBehaviour
     Map parent;
     Camera mainCamera;
     private Dictionary<string, PartsRenderInfo> partsRenderInfos;
+    private Dictionary<string, ShipInfo> shipInfos;
     Dictionary<Entity, GameObject> shipSpotlights = new Dictionary<Entity, GameObject>();
     Dictionary<Entity, GameObject> stationPointLights = new Dictionary<Entity, GameObject>();
 
@@ -41,7 +42,7 @@ public class Sector : MonoBehaviour
     }
 
 
-    public void Initialize(SectorInfo info, Camera mainCamera, Map parent, Dictionary<string, PartsRenderInfo> partsRenderInfos)
+    public void Initialize(SectorInfo info, Camera mainCamera, Map parent, Dictionary<string, PartsRenderInfo> partsRenderInfos, ShipInfos shipInfos)
     {
         this.displayName = info.name;
         this.is3d = info.is3d;
@@ -52,6 +53,7 @@ public class Sector : MonoBehaviour
         this.parent = parent;
         this.mainCamera = mainCamera;
         this.partsRenderInfos = partsRenderInfos;
+        this.shipInfos = shipInfos.ToDictionary();
 
         mainCamera.orthographic = !is3d;
 
@@ -76,7 +78,7 @@ public class Sector : MonoBehaviour
         {
             AddSectorObject(soi.name, soi.position, soi.size, soi.factionIndex, soi.moduleInfos);
         }
-        this.playerEntity = AddShip(this.startPos, true);
+        this.playerEntity = AddShip("Scaphe", this.startPos, true);
     }
 
     void Update()
@@ -254,7 +256,7 @@ public class Sector : MonoBehaviour
         return StationModuleType.None;
     }
 
-    private Entity AddShip(float3 pos, bool isPlayer)
+    private Entity AddShip(string name, float3 pos, bool isPlayer)
     {
         EntityArchetype ea = isPlayer ?
             em.CreateArchetype(typeof(Player)) :
@@ -262,6 +264,8 @@ public class Sector : MonoBehaviour
 
         Entity e = em.CreateEntity(ea);
         em.AddComponentData(e, new LocalToWorld { Value = float4x4.Translate(pos) });
+
+        ShipInfo info = shipInfos[name];
         Ship s = new Ship
         {
             size = 0.25f,
@@ -272,10 +276,10 @@ public class Sector : MonoBehaviour
             facing = new float3(1, 0, 0),
             accel = float3.zero,
             vel = float3.zero,
-            thrust = 2.0f,
-            rotationSpeed = 4.0f,
-            initialScale = float4x4.Scale(0.1f),
-            initialRotation = math.mul(float4x4.RotateX(math.radians(90)), math.mul(float4x4.RotateY(math.radians(0)), float4x4.RotateZ(math.radians(180)))),
+            thrust = info.thrust,
+            rotationSpeed = info.rotationSpeed,
+            initialScale = float4x4.Scale(info.initialScale),
+            initialRotation = math.mul(float4x4.RotateX(math.radians(info.initialRotationDegrees[0])), math.mul(float4x4.RotateY(math.radians(info.initialRotationDegrees[1])), float4x4.RotateZ(math.radians(info.initialRotationDegrees[2])))),
             dockedAt = Entity.Null,
             isUndocking = false
         };
@@ -287,7 +291,7 @@ public class Sector : MonoBehaviour
         em.AddComponentData(e, new DestroyOnLevelUnload());
         AddShipSpotlight(e, s, pos);
 
-        foreach(KeyValuePair<string, PartRenderInfo> pair in partsRenderInfos["ship"].parts)
+        foreach(KeyValuePair<string, PartRenderInfo> pair in partsRenderInfos[name].parts)
         {
             Entity child = em.CreateEntity();
             em.AddComponentData(child, new Parent { Value = e });

@@ -4,7 +4,7 @@
             "name": "Scaphe",
             "thrust": 2.0,
             "rotationSpeed": 4.0,
-            "initialScale": 0.1,
+            "initialScale": 0.15,
             "initialRotationDegrees": [90, 0, 180],
             "path": "Art/Ships/TradeSmall",
             "meshBundle": "TradeSmall_Ship",

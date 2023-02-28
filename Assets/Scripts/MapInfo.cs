@@ -1,5 +1,4 @@
 using System;
-using UnityEditor;
 using UnityEngine;
 
 [Serializable]
@@ -39,9 +38,8 @@ public struct MapInfo
     public int startingSectorIndex;
     public SectorInfo[] sectorInfos;
 
-    public static MapInfo fromJsonFile(string fileName)
+    public static MapInfo FromJsonFile(string fileName)
     {
-        TextAsset textAsset = (TextAsset)AssetDatabase.LoadAssetAtPath("Assets/Resources/Config/" + fileName, typeof(TextAsset));
-        return JsonUtility.FromJson<MapInfo>(textAsset.text);
+        return Utils.FromJsonFile<MapInfo>(fileName);
     }
 }
