@@ -356,9 +356,9 @@ public class Sector : MonoBehaviour
                     }
 
                     float signedAngle = Vector3.SignedAngle(Vector3.right, facing, Vector3.forward);
-                    Vector3 rotatedRelativePos = Quaternion.AngleAxis(signedAngle, Vector3.forward) * relativePos;
-
-                    Vector3 rotatedFacing = Quaternion.AngleAxis(signedAngle, Vector3.forward) * relativeFacing;
+                    Quaternion rotation = Quaternion.AngleAxis(signedAngle, Vector3.forward);
+                    Vector3 rotatedRelativePos = rotation * relativePos;
+                    Vector3 rotatedFacing = rotation * relativeFacing;
 
                     light.transform.forward = (facing + rotatedFacing).normalized;
                     light.transform.position = pos + rotatedRelativePos;

@@ -25,7 +25,7 @@ public struct LightInfo
     }
     public bool IsPoint()
     {
-        return relativeFacing[0] == 0 && relativeFacing[1] == 0 && relativeFacing[2] == 0;
+        return spotAngleDegrees == 0 && spotInnerAngleDegrees == 0;
     }
     public float3 RelativePos()
     {

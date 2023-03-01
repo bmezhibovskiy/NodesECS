@@ -4,7 +4,7 @@
             "name": "Scaphe",
             "thrust": 2.0,
             "rotationSpeed": 4.0,
-            "initialScale": 0.15,
+            "initialScale": 0.12,
             "initialRotationDegrees": [90, 0, 180],
             "path": "Art/Ships/TradeSmall",
             "meshBundle": "TradeSmall_Ship",
@@ -36,8 +36,8 @@
             ],
             "lights": [
                 {
-                    "relativePos": [ 0.9, 0, -0.3 ],
-                    "relativeFacing": [ 0, 0, 0.2 ],
+                    "relativePos": [ 1.2, 0, -0.2 ],
+                    "relativeFacing": [ 0, 0, 0.02 ],
                     "spotAngleDegrees": 70,
                     "spotInnerAngleDegrees": 50,
                     "colorRGBA": [ 0, 1, 0, 1 ],
