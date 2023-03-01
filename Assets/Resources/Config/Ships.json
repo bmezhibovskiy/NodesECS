@@ -33,6 +33,32 @@
                     "mesh": "Wings",
                     "material": "TradeSmall_Wings"
                 }
+            ],
+            "lights": [
+                {
+                    "relativePos": [ 0.9, 0, -0.3 ],
+                    "relativeFacing": [ 0, 0, 0.2 ],
+                    "spotAngleDegrees": 70,
+                    "spotInnerAngleDegrees": 50,
+                    "colorRGBA": [ 0, 1, 0, 1 ],
+                    "intensity": 350.0
+                },
+                {
+                    "relativePos": [ 0.0, 0, -0.3 ],
+                    "relativeFacing": [ -2, 0, 0.0 ],
+                    "spotAngleDegrees": 70,
+                    "spotInnerAngleDegrees": 50,
+                    "colorRGBA": [ 1, 0, 0, 1 ],
+                    "intensity": 350.0
+                },
+                {
+                    "relativePos": [ 0.0, 0, -1.0 ],
+                    "relativeFacing": [ -1, 0, 1.0 ],
+                    "spotAngleDegrees": 90,
+                    "spotInnerAngleDegrees": 70,
+                    "colorRGBA": [ 0, 0, 1, 1 ],
+                    "intensity": 150.0
+                }
             ]
         }
     ]

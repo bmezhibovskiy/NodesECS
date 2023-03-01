@@ -18,8 +18,7 @@ public class Sector : MonoBehaviour
     Camera mainCamera;
     private Dictionary<string, PartsRenderInfo> partsRenderInfos;
     private Dictionary<string, ShipInfo> shipInfos;
-    Dictionary<Entity, GameObject> shipSpotlights = new Dictionary<Entity, GameObject>();
-    Dictionary<Entity, GameObject> stationPointLights = new Dictionary<Entity, GameObject>();
+    Dictionary<Entity, List<GameObject>> lightObjects = new Dictionary<Entity, List<GameObject>>();
 
     string displayName;
 
@@ -101,13 +100,14 @@ public class Sector : MonoBehaviour
 
     private void OnDestroy()
     {
-        foreach(KeyValuePair<Entity, GameObject> pair in stationPointLights)
+        foreach (Entity key in lightObjects.Keys)
         {
-            Destroy(pair.Value);
-        }
-        foreach (KeyValuePair<Entity, GameObject> pair in shipSpotlights)
-        {
-            Destroy(pair.Value);
+            if (lightObjects[key] == null) { continue; }
+
+            foreach (GameObject light in lightObjects[key])
+            {
+                Destroy(light);
+            }
         }
     }
 
@@ -224,10 +224,12 @@ public class Sector : MonoBehaviour
         Station s = new Station { displayName = new FixedString128Bytes(name), size = size, factionIndex = factionIndex, modules = modules };
         em.AddComponentData(e, s);
         em.AddComponentData(e, new DestroyOnLevelUnload());
-        AddStationPointLight(e, s, pos);
+
+        lightObjects[e] = new List<GameObject>();
+        AddStationLight(e, s, pos);
     }
 
-    private void AddStationPointLight(Entity e, Station s, float3 pos)
+    private void AddStationLight(Entity e, Station s, float3 pos)
     {
         GameObject lightObject = new GameObject("Station Light");
         Light light = lightObject.AddComponent<Light>();
@@ -235,7 +237,7 @@ public class Sector : MonoBehaviour
         light.intensity = 250;
         light.color = Color.white;
         light.transform.position = pos;
-        stationPointLights[e] = lightObject;
+        lightObjects[e].Add(lightObject);
     }
 
     private StationModuleType StationModuleTypeFromString(string str)
@@ -289,7 +291,12 @@ public class Sector : MonoBehaviour
             em.AddComponentData(e, new Player { });
         }
         em.AddComponentData(e, new DestroyOnLevelUnload());
-        AddShipSpotlight(e, s, pos);
+
+        lightObjects[e] = new List<GameObject>();
+        foreach (LightInfo li in info.lights)
+        {
+            AddShipLight(e, s, pos, li);
+        }
 
         foreach(KeyValuePair<string, PartRenderInfo> pair in partsRenderInfos[name].parts)
         {
@@ -308,30 +315,54 @@ public class Sector : MonoBehaviour
         return e;
     }
 
-    private void AddShipSpotlight(Entity e, Ship s, float3 pos)
+    private void AddShipLight(Entity e, Ship s, float3 pos, LightInfo lightInfo)
     {
         GameObject lightObject = new GameObject("Ship Light");
         Light light = lightObject.AddComponent<Light>();
-        light.type = LightType.Spot;
-        light.intensity = 250;
-        light.color = Color.white;
-        light.spotAngle = 90;
-        light.innerSpotAngle = 45;
-        shipSpotlights[e] = lightObject;
+        if (lightInfo.IsPoint())
+        {
+            light.type = LightType.Point;
+        }
+        else
+        {
+            light.type = LightType.Spot;
+            light.spotAngle = lightInfo.spotAngleDegrees;
+            light.innerSpotAngle = lightInfo.spotInnerAngleDegrees;
+        }
+        light.intensity = lightInfo.intensity;
+        light.color = lightInfo.GetColor();
+        lightInfo.AddToGameObject(lightObject);
+        lightObjects[e].Add(lightObject);
     }
 
     public void UpdateLights()
     {
         List<Entity> toRemove = new List<Entity>();
-        foreach(KeyValuePair<Entity, GameObject> pair in shipSpotlights)
+        foreach(KeyValuePair<Entity, List<GameObject>> pair in lightObjects)
         {
             if(em.HasComponent<LocalToWorld>(pair.Key) && em.HasComponent<Ship>(pair.Key))
             {
-                float3 pos = em.GetComponentData<LocalToWorld>(pair.Key).Position;
-                float3 facing = em.GetComponentData<Ship>(pair.Key).facing;
-                float3 heightVec = new float3(0, 0, 0.4f);
-                pair.Value.transform.position = pos + heightVec;
-                pair.Value.transform.forward = facing - heightVec;
+                foreach (GameObject light in pair.Value)
+                {
+                    Vector3 pos = em.GetComponentData<LocalToWorld>(pair.Key).Position;
+                    Vector3 facing = em.GetComponentData<Ship>(pair.Key).facing;
+                    Vector3 relativePos = float3.zero;
+                    Vector3 relativeFacing = float3.zero;
+                    LightInfoBehavior behavior = light.GetComponent<LightInfoBehavior>();
+                    if(behavior != null)
+                    {
+                        relativePos = behavior.lightInfo.RelativePos();
+                        relativeFacing = behavior.lightInfo.RelativeFacing();
+                    }
+
+                    float signedAngle = Vector3.SignedAngle(Vector3.right, facing, Vector3.forward);
+                    Vector3 rotatedRelativePos = Quaternion.AngleAxis(signedAngle, Vector3.forward) * relativePos;
+
+                    Vector3 rotatedFacing = Quaternion.AngleAxis(signedAngle, Vector3.forward) * relativeFacing;
+
+                    light.transform.forward = (facing + rotatedFacing).normalized;
+                    light.transform.position = pos + rotatedRelativePos;
+                }
             }
             else
             {
@@ -340,26 +371,13 @@ public class Sector : MonoBehaviour
         }
         foreach(Entity removeThis in toRemove)
         {
-            Destroy(shipSpotlights[removeThis]);
-            shipSpotlights[removeThis] = null;
-        }
+            if (lightObjects[removeThis] == null) { continue; }
 
-        toRemove = new List<Entity>();
-        foreach (KeyValuePair<Entity, GameObject> pair in stationPointLights)
-        {
-            if (em.HasComponent<LocalToWorld>(pair.Key) && em.HasComponent<Station>(pair.Key))
+            foreach(GameObject light in lightObjects[removeThis])
             {
-                //No update needed, since stations don't move
+                Destroy(light);
             }
-            else
-            {
-                toRemove.Add(pair.Key);
-            }
-        }
-        foreach (Entity removeThis in toRemove)
-        {
-            Destroy(stationPointLights[removeThis]);
-            stationPointLights[removeThis] = null;
+            lightObjects[removeThis] = null;
         }
     }
 
