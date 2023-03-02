@@ -44,8 +44,8 @@
                     "intensity": 350.0
                 },
                 {
-                    "relativePos": [ 0.0, 0, -0.3 ],
-                    "relativeFacing": [ -2, 0, 0.0 ],
+                    "relativePos": [ 0.0, 0, -0.4 ],
+                    "relativeFacing": [ -2, 0, 0.05 ],
                     "spotAngleDegrees": 70,
                     "spotInnerAngleDegrees": 50,
                     "colorRGBA": [ 1, 0, 0, 1 ],

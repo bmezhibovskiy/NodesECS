@@ -8,8 +8,8 @@
 			"connectedSectorIds": [],
 			"is3d": false,
 			"nodeSize": 0.16,
-			"sideLength": 48.0,
-			"sideNodes": 65,
+			"sideLength": 50.0,
+			"sideNodes": 81,
 			"startPosition": {"x": 0.0, "y": 0.0, "z": 0.0},
 			"sectorObjectInfos":
 			[

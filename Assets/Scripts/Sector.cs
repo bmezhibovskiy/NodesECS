@@ -22,7 +22,6 @@ public class Sector : MonoBehaviour
 
     string displayName;
 
-    bool is3d;
     float sideLength;
     int numSideNodes;
     float3 startPos;
@@ -44,7 +43,6 @@ public class Sector : MonoBehaviour
     public void Initialize(SectorInfo info, Camera mainCamera, Map parent, Dictionary<string, PartsRenderInfo> partsRenderInfos, ShipInfos shipInfos)
     {
         this.displayName = info.name;
-        this.is3d = info.is3d;
         this.sideLength = info.sideLength;
         this.numSideNodes = info.sideNodes;
         this.startPos = info.startPosition;
@@ -54,9 +52,7 @@ public class Sector : MonoBehaviour
         this.partsRenderInfos = partsRenderInfos;
         this.shipInfos = shipInfos.ToDictionary();
 
-        mainCamera.orthographic = !is3d;
-
-        this.numNodes = is3d ? numSideNodes * numSideNodes * numSideNodes : numSideNodes * numSideNodes;
+        this.numNodes = numSideNodes * numSideNodes;
         this.nodeDistance = sideLength / (float)numSideNodes;
         this.nodeOffset = new float3(0, nodeDistance, 0);
 
@@ -65,10 +61,7 @@ public class Sector : MonoBehaviour
         this.em = World.DefaultGameObjectInjectionWorld.EntityManager;
 
         int numBorderNodes = 2 * numSideNodes + 2 * (numSideNodes - 2);
-        if(is3d)
-        {
-            numBorderNodes = 2 * (numSideNodes * numSideNodes) + 2 * ((numSideNodes - 2) * numSideNodes) + 2 * ((numSideNodes - 2) * (numSideNodes - 2));
-        }
+
         NativeArray<Entity> borderNodes = new NativeArray<Entity>(numBorderNodes, Allocator.Temp);
         NativeArray<Entity> nonBorderNodes = new NativeArray<Entity>(numNodes - numBorderNodes, Allocator.Temp);
         GenerateNodes(borderNodes, nonBorderNodes);
@@ -125,20 +118,13 @@ public class Sector : MonoBehaviour
             int2 raw2D = Utils.to2D(i, numSideNodes);
             int3 raw3D = Utils.to3D(i, numSideNodes);
 
-            int[] raw = is3d ? new int[] { raw3D.x, raw3D.y, raw3D.z } : new int[] { raw2D.x, raw2D.y };
+            int[] raw = new int[] { raw2D.x, raw2D.y };
             float x = (float)(raw[0] - numSideNodes / 2) * nodeDistance;
             float y = (float)(raw[1] - numSideNodes / 2) * nodeDistance;
             bool isBorder = IsBorder(raw);
             Entity addedNode;
-            if (is3d)
-            {
-                float z = (float)(raw[2] - numSideNodes / 2) * nodeDistance;
-                addedNode = AddNode(new float3(x, y, z) + nodeOffset, isBorder);
-            }
-            else
-            {
-                addedNode = AddNode(new float3(x, y, 0) + nodeOffset, isBorder);
-            }
+            addedNode = AddNode(new float3(x, y, 0) + nodeOffset, isBorder);
+            
             if(isBorder)
             {
                 borderNodes[numBorderNodes++] = addedNode;
