@@ -32,6 +32,7 @@ public struct InputState
     public bool RotateLeftKeyDown;
     public bool RotateRightKeyDown;
     public bool HyperspaceKeyDown;
+    public bool LightsKeyPressed;
 
     public void Initialize()
     {
@@ -41,6 +42,7 @@ public struct InputState
         RotateLeftKeyDown = false;
         RotateRightKeyDown = false;
         HyperspaceKeyDown = false;
+        LightsKeyPressed = false;
     }
 }
 
@@ -170,6 +172,7 @@ public class GameManager : MonoBehaviour
         Globals.sharedInputState.Data.RotateLeftKeyDown = Input.GetKey(KeyCode.LeftArrow);
         Globals.sharedInputState.Data.RotateRightKeyDown = Input.GetKey(KeyCode.RightArrow);
         Globals.sharedInputState.Data.HyperspaceKeyDown = Input.GetKey(KeyCode.H);
+        Globals.sharedInputState.Data.LightsKeyPressed = Input.GetKeyDown(KeyCode.L);
     }
 
 

@@ -80,6 +80,8 @@ public struct Ship : IComponentData
     public int hyperspaceNodesGathered;
     public int hyperspaceTarget;
 
+    public bool lightsOn;
+
     public void Rotate(float speed)
     {
         facing = math.rotate(quaternion.RotateZ(speed), facing);
@@ -253,6 +255,10 @@ public partial struct UpdatePlayerShipJob: IJobEntity
                 }
                 ship.StartHyperspace(targetIndex, 50);
             }
+        }
+        if(Globals.sharedInputState.Data.LightsKeyPressed)
+        {
+            ship.lightsOn = !ship.lightsOn;
         }
     }
 }

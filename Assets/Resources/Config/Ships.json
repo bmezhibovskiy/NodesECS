@@ -41,7 +41,7 @@
                     "spotAngleDegrees": 70,
                     "spotInnerAngleDegrees": 50,
                     "colorRGBA": [ 0, 1, 0, 1 ],
-                    "intensity": 350.0
+                    "intensity": 550.0
                 },
                 {
                     "relativePos": [ 0.0, 0, -0.4 ],

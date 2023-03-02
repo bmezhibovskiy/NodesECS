@@ -326,27 +326,34 @@ public class Sector : MonoBehaviour
         List<Entity> toRemove = new List<Entity>();
         foreach(KeyValuePair<Entity, List<GameObject>> pair in lightObjects)
         {
-            if(em.HasComponent<LocalToWorld>(pair.Key) && em.HasComponent<Ship>(pair.Key))
+            if(em.HasComponent<LocalToWorld>(pair.Key))
             {
                 foreach (GameObject light in pair.Value)
                 {
-                    Vector3 pos = em.GetComponentData<LocalToWorld>(pair.Key).Position;
-                    Vector3 facing = em.GetComponentData<Ship>(pair.Key).facing;
                     Vector3 relativePos = float3.zero;
                     Vector3 relativeFacing = float3.zero;
                     LightInfoBehavior behavior = light.GetComponent<LightInfoBehavior>();
-                    if(behavior != null)
+                    if (behavior != null)
                     {
                         relativePos = behavior.lightInfo.RelativePos();
                         relativeFacing = behavior.lightInfo.RelativeFacing();
                     }
 
-                    float signedAngle = Vector3.SignedAngle(Vector3.right, facing, Vector3.forward);
-                    Quaternion rotation = Quaternion.AngleAxis(signedAngle, Vector3.forward);
-                    Vector3 rotatedRelativePos = rotation * relativePos;
-                    Vector3 rotatedFacing = rotation * relativeFacing;
+                    Quaternion rotation = Quaternion.identity;
+                    if(em.HasComponent<Ship>(pair.Key))
+                    {
+                        Ship ship = em.GetComponentData<Ship>(pair.Key);
+                        light.SetActive(ship.lightsOn);
+                        Vector3 facing = em.GetComponentData<Ship>(pair.Key).facing;
+                        float signedAngle = Vector3.SignedAngle(Vector3.right, facing, Vector3.forward);
+                        rotation = Quaternion.AngleAxis(signedAngle, Vector3.forward);
+                        Vector3 rotatedFacing = rotation * relativeFacing;
 
-                    light.transform.forward = (facing + rotatedFacing).normalized;
+                        light.transform.forward = (facing + rotatedFacing).normalized;
+                    }
+                    Vector3 pos = em.GetComponentData<LocalToWorld>(pair.Key).Position;
+                    Vector3 rotatedRelativePos = rotation * relativePos;
+
                     light.transform.position = pos + rotatedRelativePos;
                 }
             }
