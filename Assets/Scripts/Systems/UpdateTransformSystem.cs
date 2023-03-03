@@ -5,10 +5,16 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
 
-public struct RelativeTransform: IComponentData
+[BurstCompile]
+public partial struct UpdateTransformsJob : IJobEntity
 {
-    public float4x4 Value;
-    public float4x4 lastParentValue;
+    void Execute(ref LocalToWorld t, in NextTransform nt, in InitialTransform it)
+    {
+        float4x4 translation = float4x4.Translate(nt.nextPos);
+        float angle = math.radians(Vector3.SignedAngle(Vector3.right, nt.facing, Vector3.forward));
+        float4x4 rotation = float4x4.RotateZ(angle);
+        t.Value = math.mul(translation, math.mul(math.mul(rotation, it.initialRotation), it.initialScale));
+    }
 }
 
 [BurstCompile]
@@ -22,7 +28,7 @@ public partial struct PopulateParentTransformJob : IJobEntity
 }
 
 [BurstCompile]
-public partial struct UpdateChildTransformJob: IJobEntity
+public partial struct UpdateChildTransformJob : IJobEntity
 {
     void Execute(ref LocalToWorld transform, in RelativeTransform rt)
     {
@@ -31,7 +37,7 @@ public partial struct UpdateChildTransformJob: IJobEntity
 }
 
 [BurstCompile]
-public partial struct UpdateChildTransformSystem : ISystem
+public partial struct UpdateTransformSystem : ISystem
 {
     [ReadOnly] private ComponentLookup<LocalToWorld> transformData;
 
@@ -52,6 +58,8 @@ public partial struct UpdateChildTransformSystem : ISystem
     public void OnUpdate(ref SystemState systemState)
     {
         transformData.Update(ref systemState);
+
+        systemState.Dependency = new UpdateTransformsJob().ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new PopulateParentTransformJob { transformData = transformData }.ScheduleParallel(systemState.Dependency);
 

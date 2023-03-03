@@ -2,20 +2,21 @@ using System;
 using UnityEngine;
 
 [Serializable]
-public struct SectorObjectModuleInfo
+public struct StationModuleInfo
 {
     public string type;
     public float[] parameters;
 }
 
 [Serializable]
-public struct SectorObjectInfo
+public struct StationInfo
 {
     public string name;
+    public string type;
     public Vector3 position;
     public float size;
     public int factionIndex;
-    public SectorObjectModuleInfo[] moduleInfos;
+    public StationModuleInfo[] moduleInfos;
 }
 
 [Serializable]
@@ -29,7 +30,7 @@ public struct SectorInfo
     public float sideLength;
     public int sideNodes;
     public Vector3 startPosition;
-    public SectorObjectInfo[] sectorObjectInfos;
+    public StationInfo[] stationInfos;
 }
 
 [Serializable]

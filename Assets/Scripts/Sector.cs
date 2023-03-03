@@ -6,6 +6,7 @@ using Unity.Collections;
 using Unity.Rendering;
 using System.Collections.Generic;
 using UnityEngine.Rendering;
+using System.Linq;
 
 public struct DestroyOnLevelUnload: IComponentData
 {
@@ -18,6 +19,7 @@ public class Sector : MonoBehaviour
     Camera mainCamera;
     private Dictionary<string, PartsRenderInfo> partsRenderInfos;
     private Dictionary<string, ShipInfo> shipInfos;
+    private Dictionary<string, StationTypeInfo> stationTypeInfos;
     Dictionary<Entity, List<GameObject>> lightObjects = new Dictionary<Entity, List<GameObject>>();
 
     string displayName;
@@ -40,7 +42,7 @@ public class Sector : MonoBehaviour
     }
 
 
-    public void Initialize(SectorInfo info, Camera mainCamera, Map parent, Dictionary<string, PartsRenderInfo> partsRenderInfos, ShipInfos shipInfos)
+    public void Initialize(SectorInfo info, Camera mainCamera, Map parent, Dictionary<string, PartsRenderInfo> partsRenderInfos, ShipInfos shipInfos, StationTypeInfos stationInfos)
     {
         this.displayName = info.name;
         this.sideLength = info.sideLength;
@@ -51,6 +53,7 @@ public class Sector : MonoBehaviour
         this.mainCamera = mainCamera;
         this.partsRenderInfos = partsRenderInfos;
         this.shipInfos = shipInfos.ToDictionary();
+        this.stationTypeInfos = stationInfos.ToDictionary();
 
         this.numNodes = numSideNodes * numSideNodes;
         this.nodeDistance = sideLength / (float)numSideNodes;
@@ -66,9 +69,9 @@ public class Sector : MonoBehaviour
         NativeArray<Entity> nonBorderNodes = new NativeArray<Entity>(numNodes - numBorderNodes, Allocator.Temp);
         GenerateNodes(borderNodes, nonBorderNodes);
         GenerateConnections(borderNodes, nonBorderNodes);
-        foreach(SectorObjectInfo soi in info.sectorObjectInfos)
+        foreach(StationInfo si in info.stationInfos)
         {
-            AddSectorObject(soi.name, soi.position, soi.size, soi.factionIndex, soi.moduleInfos);
+            AddStation(si.name, si.type, si.position, si.size, si.factionIndex, si.moduleInfos);
         }
         this.playerEntity = AddShip("Scaphe", this.startPos, true);
     }
@@ -191,14 +194,15 @@ public class Sector : MonoBehaviour
         return e;
     }
 
-    private void AddSectorObject(string name, float3 pos, float size, int factionIndex, SectorObjectModuleInfo[] moduleInfos)
+    private void AddStation(string name, string type, float3 pos, float size, int factionIndex, StationModuleInfo[] moduleInfos)
     {
         EntityArchetype ea = em.CreateArchetype(typeof(Station));
         Entity e = em.CreateEntity(ea);
         em.AddComponentData(e, new LocalToWorld { Value = float4x4.Translate(pos) });
+        em.AddComponentData(e, new NextTransform { facing = new float3(1, 0, 0) });
 
         StationModules modules = new StationModules();
-        foreach(SectorObjectModuleInfo moduleInfo in moduleInfos)
+        foreach(StationModuleInfo moduleInfo in moduleInfos)
         {
             StationModule module = new StationModule { type = StationModuleTypeFromString(moduleInfo.type) };
             foreach(float param in moduleInfo.parameters)
@@ -211,19 +215,13 @@ public class Sector : MonoBehaviour
         em.AddComponentData(e, s);
         em.AddComponentData(e, new DestroyOnLevelUnload());
 
+        StationTypeInfo info = stationTypeInfos[type];
         lightObjects[e] = new List<GameObject>();
-        AddStationLight(e, s, pos);
-    }
-
-    private void AddStationLight(Entity e, Station s, float3 pos)
-    {
-        GameObject lightObject = new GameObject("Station Light");
-        Light light = lightObject.AddComponent<Light>();
-        light.type = LightType.Point;
-        light.intensity = 250;
-        light.color = Color.white;
-        light.transform.position = pos;
-        lightObjects[e].Add(lightObject);
+        foreach (LightInfo li in info.displayInfo.lights)
+        {
+            AddLight(e, pos, li);
+        }
+        partsRenderInfos[type].AddRenderComponents(em, e);
     }
 
     private StationModuleType StationModuleTypeFromString(string str)
@@ -254,20 +252,24 @@ public class Sector : MonoBehaviour
         em.AddComponentData(e, new LocalToWorld { Value = float4x4.Translate(pos) });
 
         ShipInfo info = shipInfos[name];
+
+        em.AddComponentData(e, new InitialTransform {
+            initialScale = float4x4.Scale(info.displayInfo.initialScale),
+            initialRotation = math.mul(float4x4.RotateX(math.radians(info.displayInfo.initialRotationDegrees[0])), math.mul(float4x4.RotateY(math.radians(info.displayInfo.initialRotationDegrees[1])), float4x4.RotateZ(math.radians(info.displayInfo.initialRotationDegrees[2]))))
+        });
+
+        em.AddComponentData(e, new NextTransform { facing = new float3(1, 0, 0), nextPos = pos });
+
         Ship s = new Ship
         {
             size = 0.25f,
             closestNodes = ClosestNodes.empty,
             nodeOffset = float3.zero,
             prevPos = pos,
-            nextPos = pos,
-            facing = new float3(1, 0, 0),
             accel = float3.zero,
             vel = float3.zero,
             thrust = info.thrust,
             rotationSpeed = info.rotationSpeed,
-            initialScale = float4x4.Scale(info.initialScale),
-            initialRotation = math.mul(float4x4.RotateX(math.radians(info.initialRotationDegrees[0])), math.mul(float4x4.RotateY(math.radians(info.initialRotationDegrees[1])), float4x4.RotateZ(math.radians(info.initialRotationDegrees[2])))),
             dockedAt = Entity.Null,
             isUndocking = false
         };
@@ -279,31 +281,18 @@ public class Sector : MonoBehaviour
         em.AddComponentData(e, new DestroyOnLevelUnload());
 
         lightObjects[e] = new List<GameObject>();
-        foreach (LightInfo li in info.lights)
+        foreach (LightInfo li in info.displayInfo.lights)
         {
-            AddShipLight(e, s, pos, li);
+            AddLight(e, pos, li);
         }
-
-        foreach(KeyValuePair<string, PartRenderInfo> pair in partsRenderInfos[name].parts)
-        {
-            Entity child = em.CreateEntity();
-            em.AddComponentData(child, new Parent { Value = e });
-            float4x4 transform = pair.Value.transform.localToWorldMatrix;
-            em.AddComponentData(child, new LocalToWorld { Value = transform });
-            em.AddComponentData(child, new RelativeTransform { Value = transform, lastParentValue = float4x4.zero });
-            em.AddComponentData(child, new DestroyOnLevelUnload());
-
-            RenderMeshDescription rmd = new RenderMeshDescription(ShadowCastingMode.On, true);
-            RenderMeshArray renderMeshArray = new RenderMeshArray(new Material[] { pair.Value.material }, new Mesh[] { pair.Value.mesh });
-            RenderMeshUtility.AddComponents(child, em, rmd, renderMeshArray, MaterialMeshInfo.FromRenderMeshArrayIndices(0, 0));
-        }
+        partsRenderInfos[name].AddRenderComponents(em, e);
 
         return e;
     }
 
-    private void AddShipLight(Entity e, Ship s, float3 pos, LightInfo lightInfo)
+    private void AddLight(Entity e, float3 pos, LightInfo lightInfo)
     {
-        GameObject lightObject = new GameObject("Ship Light");
+        GameObject lightObject = new GameObject("Light");
         Light light = lightObject.AddComponent<Light>();
         if (lightInfo.IsPoint())
         {
@@ -330,8 +319,13 @@ public class Sector : MonoBehaviour
             {
                 foreach (GameObject light in pair.Value)
                 {
-                    Vector3 relativePos = float3.zero;
-                    Vector3 relativeFacing = float3.zero;
+                    if (em.HasComponent<Ship>(pair.Key))
+                    {
+                        light.SetActive(em.GetComponentData<Ship>(pair.Key).lightsOn);
+                    }
+
+                    Vector3 relativePos = Vector3.zero;
+                    Vector3 relativeFacing = Vector3.right;
                     LightInfoBehavior behavior = light.GetComponent<LightInfoBehavior>();
                     if (behavior != null)
                     {
@@ -339,18 +333,18 @@ public class Sector : MonoBehaviour
                         relativeFacing = behavior.lightInfo.RelativeFacing();
                     }
 
-                    Quaternion rotation = Quaternion.identity;
-                    if(em.HasComponent<Ship>(pair.Key))
+                    Vector3 facing = Vector3.right;
+                    if (em.HasComponent<NextTransform>(pair.Key))
                     {
-                        Ship ship = em.GetComponentData<Ship>(pair.Key);
-                        light.SetActive(ship.lightsOn);
-                        Vector3 facing = em.GetComponentData<Ship>(pair.Key).facing;
-                        float signedAngle = Vector3.SignedAngle(Vector3.right, facing, Vector3.forward);
-                        rotation = Quaternion.AngleAxis(signedAngle, Vector3.forward);
-                        Vector3 rotatedFacing = rotation * relativeFacing;
-
-                        light.transform.forward = (facing + rotatedFacing).normalized;
+                        facing = em.GetComponentData<NextTransform>(pair.Key).facing;
                     }
+
+                    float signedAngle = Vector3.SignedAngle(Vector3.right, facing, Vector3.forward);
+                    Quaternion rotation = Quaternion.AngleAxis(signedAngle, Vector3.forward);
+                    Vector3 rotatedFacing = rotation * relativeFacing;
+
+                    light.transform.forward = (facing + rotatedFacing).normalized;
+
                     Vector3 pos = em.GetComponentData<LocalToWorld>(pair.Key).Position;
                     Vector3 rotatedRelativePos = rotation * relativePos;
 

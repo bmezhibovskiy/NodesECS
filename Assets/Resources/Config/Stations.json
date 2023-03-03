@@ -1,9 +1,7 @@
 {
-    "ships": [
+    "stations": [
         {
-            "name": "Scaphe",
-            "thrust": 2.0,
-            "rotationSpeed": 4.0,
+            "name": "Trade1",
             "displayInfo": {
                 "initialScale": 0.12,
                 "initialRotationDegrees": [ 90, 0, 180 ],

@@ -66,27 +66,6 @@ public struct LevelInfo
     }
 }
 
-public class PartRenderInfo
-{
-    public Mesh mesh;
-    public Material material;
-    public Transform transform;
-    public PartRenderInfo(Mesh mesh, Material material, Transform transform)
-    {
-        this.mesh = mesh;
-        this.material = material;
-        this.transform = transform;
-    }
-}
-public class PartsRenderInfo
-{
-    public Dictionary<string, PartRenderInfo> parts = new Dictionary<string, PartRenderInfo>();
-    public void AddPart(string name, PartRenderInfo info)
-    {
-        parts[name] = info;
-    }
-}
-
 public class GameManager : MonoBehaviour
 {
     [SerializeField]
@@ -99,10 +78,13 @@ public class GameManager : MonoBehaviour
     Material nodeMaterial;
 
     ShipInfos shipInfos;
+    StationTypeInfos stationTypeInfos;
 
     Dictionary<string, PartsRenderInfo> partsRenderInfos = new Dictionary<string, PartsRenderInfo>();
 
     GameObject mapObject;
+
+    
 
     // Start is called before the first frame update
     void Start()
@@ -113,34 +95,22 @@ public class GameManager : MonoBehaviour
 
         foreach(ShipInfo shipInfo in shipInfos.ships)
         {
-            Dictionary<string, Material> materials = new Dictionary<string, Material>();
-            foreach (ShipPartInfo partInfo in shipInfo.parts)
-            {
-                string materialPath = shipInfo.path + "/" + partInfo.material;
-                materials[partInfo.mesh] = Resources.Load<Material>(materialPath);
-            }
-            PartsRenderInfo pri = new PartsRenderInfo();
-            string meshBundlePath = shipInfo.path + "/" + shipInfo.meshBundle;
-            GameObject shipObject = Resources.Load(meshBundlePath) as GameObject;
-            for (int i = 0; i < shipObject.transform.childCount; ++i)
-            {
-                Transform childTransform = shipObject.transform.GetChild(i);
-                GameObject child = childTransform.gameObject;
-                Mesh mesh = child.GetComponent<MeshFilter>().sharedMesh;
-                Material mat = materials[child.name];
-                Assert.IsNotNull(mat);
-                pri.AddPart(child.name, new PartRenderInfo(mesh, mat, childTransform));
-                
-            }
-            partsRenderInfos[shipInfo.name] = pri;
+            partsRenderInfos[shipInfo.name] = PartsRenderInfo.CreatePartsRenderInfo(shipInfo.displayInfo);
         }
+
+        stationTypeInfos = StationTypeInfos.FromJsonFile("Stations.json");
+
+        foreach(StationTypeInfo stationTypeInfo in stationTypeInfos.stations)
+        {
+            partsRenderInfos[stationTypeInfo.name] = PartsRenderInfo.CreatePartsRenderInfo(stationTypeInfo.displayInfo);
+        }    
 
         SetUpPrototypes();
 
         mapObject = new GameObject("Map");
         Map map = mapObject.AddComponent<Map>();
 
-        map.Instantiate(mainCamera, partsRenderInfos, shipInfos);
+        map.Instantiate(mainCamera, partsRenderInfos, shipInfos, stationTypeInfos);
     }
 
     private void SetUpPrototypes()

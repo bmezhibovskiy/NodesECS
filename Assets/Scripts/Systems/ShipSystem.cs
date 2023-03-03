@@ -6,157 +6,6 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
 
-public struct ClosestNodes
-{
-    public readonly static int numClosestNodes = 3;
-    public readonly static ClosestNodes empty = new ClosestNodes
-    {
-        closestNode1 = Entity.Null,
-        closestNode2 = Entity.Null,
-        closestNode3 = Entity.Null
-    };
-
-    public Entity closestNode1;
-    public Entity closestNode2;
-    public Entity closestNode3;
-
-    public Entity Get(int index)
-    {
-        switch (index)
-        {
-            case 0:
-                return closestNode1;
-            case 1:
-                return closestNode2;
-            case 2:
-                return closestNode3;
-            default:
-                return Entity.Null;
-        }
-    }
-
-    public void Set(Entity e, int index)
-    {
-        switch (index)
-        {
-            case 0:
-                closestNode3 = closestNode2;
-                closestNode2 = closestNode1;
-                closestNode1 = e;
-                break;
-            case 1:
-                closestNode3 = closestNode2;
-                closestNode2 = e;
-                break;
-            case 2:
-                closestNode3 = e;
-                break;
-            default:
-                break;
-        }
-    }
-}
-
-public struct Ship : IComponentData
-{
-    public float size;
-
-    public ClosestNodes closestNodes;
-    public float3 nodeOffset;
-    public float3 prevPos;
-    public float3 nextPos;
-    public float3 facing;
-    public float3 accel;
-    public float3 vel;//derived from translation and prevPos
-    public float4x4 initialScale;
-    public float4x4 initialRotation;
-    public float thrust;
-    public float rotationSpeed;
-
-    public Entity dockedAt;
-    public bool isUndocking;
-
-    public int hyperspaceNodesRequired;
-    public int hyperspaceNodesGathered;
-    public int hyperspaceTarget;
-
-    public bool lightsOn;
-
-    public void Rotate(float speed)
-    {
-        facing = math.rotate(quaternion.RotateZ(speed), facing);
-    }
-    public void AddThrust(float strength)
-    {
-        accel += facing * strength;
-    }
-    public float3 AverageNodePos(ComponentLookup<LocalToWorld> transformData)
-    {
-        float3 avgPos = float3.zero;
-        int numClosest = 0;
-        for(int i = 0; i < ClosestNodes.numClosestNodes; ++i)
-        {
-            Entity closest = closestNodes.Get(i);
-            if (transformData.HasComponent(closest))
-            {
-                avgPos += transformData[closest].Position;
-                ++numClosest;
-            }
-        }
-        if (numClosest > 0)
-        {
-            return avgPos / (float)numClosest;
-        }
-        return prevPos;
-    }
-
-    public float3 GridPosition(ComponentLookup<LocalToWorld> transformData)
-    {
-        return AverageNodePos(transformData) + nodeOffset;
-    }
-    public void HandleCollisionAt(float3 collisionPos, float3 normal, float bounciness = 0.5f)
-    {
-        nextPos = collisionPos;
-        if (math.lengthsq(vel) < 0.00002f)
-        {
-            //Velocity too small, set to 0 instead of bouncing forever, which can cause instability
-            prevPos = collisionPos;
-            return;
-        }
-
-        //Reflect vel about normal
-        vel = (vel - 2f * Vector3.Dot(vel, normal) * normal) * bounciness;
-
-        //Would need time independent accel because otherwise we would need next frame's deltaTime to get the correct bounce
-        //Verlet integration doesn't seem good for velocity based forces, since velocity is derived.
-        //timeIndependentAccel += (-2 * normal * Vector3.Dot(vel, normal)) * bounciness;
-
-        prevPos = collisionPos - vel;
-    }
-
-    public void StartHyperspace(int target, int nodesRequired)
-    {
-        hyperspaceTarget = target;
-        hyperspaceNodesRequired = nodesRequired;
-        hyperspaceNodesGathered = 0;
-    }
-
-    public bool PreparingHyperspace()
-    {
-        return hyperspaceNodesRequired > 0;
-    }
-
-    public bool ShouldJumpNow()
-    {
-        return PreparingHyperspace() && hyperspaceNodesGathered >= hyperspaceNodesRequired;
-    }
-}
-
-public struct Player: IComponentData
-{
-
-}
-
 [BurstCompile]
 public partial struct FindClosestNodesJob : IJobEntity
 {
@@ -209,7 +58,7 @@ public partial struct FindClosestNodesJob : IJobEntity
 public partial struct UpdatePlayerShipJob: IJobEntity
 {
     [ReadOnly] public TimeData timeData; 
-    void Execute(ref Ship ship, Player p)
+    void Execute(ref Ship ship, ref NextTransform facing, Player p)
     {
         float dt = timeData.DeltaTime;
         float rspeed = ship.rotationSpeed * dt;
@@ -218,26 +67,26 @@ public partial struct UpdatePlayerShipJob: IJobEntity
         {
             if (Globals.sharedInputState.Data.RotateLeftKeyDown)
             {
-                ship.Rotate(rspeed);
+                facing.Rotate(rspeed);
             }
             if (Globals.sharedInputState.Data.RotateRightKeyDown)
             {
-                ship.Rotate(-rspeed);
+                facing.Rotate(-rspeed);
             }
             if (Globals.sharedInputState.Data.ForwardThrustKeyDown)
             {
-                ship.AddThrust(fspeed);
+                ship.AddThrust(fspeed * facing.facing);
             }
             if (Globals.sharedInputState.Data.ReverseThrustKeyDown)
             {
-                ship.AddThrust(-fspeed);
+                ship.AddThrust(-fspeed * facing.facing);
             }
         }
         if (Globals.sharedInputState.Data.AfterburnerKeyDown)
         {
             if (ship.dockedAt == Entity.Null)
             {
-                ship.AddThrust(fspeed * 2.0f);
+                ship.AddThrust(fspeed * 2.0f * facing.facing);
             }
             else
             {
@@ -271,9 +120,9 @@ public partial struct UpdateShipsWithStationsJob: IJobEntity
     [ReadOnly] public ComponentLookup<Station> stationData;
     [ReadOnly] public TimeData timeData;
 
-    void Execute(ref Ship ship)
+    void Execute(ref Ship ship, ref NextTransform nt)
     {
-        float3 shipPos = ship.nextPos;
+        float3 shipPos = nt.nextPos;
         float dt = timeData.DeltaTime;
         float dt2 = dt * dt;
         for(int i = 0; i < stationEntities.Length; ++i)
@@ -299,6 +148,7 @@ public partial struct UpdateShipsWithStationsJob: IJobEntity
                             if (intersection != null)
                             {
                                 float bounciness = sm.GetParam(1);
+                                nt.nextPos = intersection.Value;
                                 ship.HandleCollisionAt(intersection.Value, math.normalize(intersection.Value - stationPos), bounciness);
                             }
                         }
@@ -331,15 +181,15 @@ public partial struct UpdateShipsWithStationsJob: IJobEntity
                                 ship.isUndocking = false;
                                 ship.dockedAt = stationEntity;
                                 ship.prevPos = shipPos;
-                                ship.nextPos = shipPos;
                                 ship.accel = float3.zero;
                                 ship.vel = float3.zero;
-                                ship.facing = normalizedDir;
+                                nt.nextPos = shipPos;
+                                nt.facing = normalizedDir;
                             }
                         }
                         else if (ship.isUndocking && ship.dockedAt == stationEntity)
                         {
-                            ship.facing = normalizedDir;
+                            nt.facing = normalizedDir;
                             if (distSq < totalUndockSize * totalUndockSize)
                             {
                                 ship.AddThrust(undockThrust);
@@ -364,30 +214,18 @@ public partial struct IntegrateShipsJob: IJobEntity
 {
     [ReadOnly] public TimeData timeData;
     [ReadOnly] public ComponentLookup<LocalToWorld> transformData;
-    void Execute(ref Ship ship)
+    void Execute(ref Ship ship, ref NextTransform nt)
     {
         if(ship.dockedAt != Entity.Null && !ship.isUndocking) { return; }
         if(ship.PreparingHyperspace()) { return; }
 
         float dt = timeData.DeltaTime;
-        float3 shipPos = ship.nextPos;
+        float3 shipPos = nt.nextPos;
         float3 current = shipPos + (ship.GridPosition(transformData) - shipPos) * dt;
-        ship.nextPos = 2 * current - ship.prevPos + ship.accel * (dt * dt);
+        nt.nextPos = 2 * current - ship.prevPos + ship.accel * (dt * dt);
         ship.accel = float3.zero;
         ship.prevPos = current;
-        ship.vel = ship.nextPos - current;
-    }
-}
-
-[BurstCompile]
-public partial struct UpdateShipTransformsJob : IJobEntity
-{
-    void Execute(ref LocalToWorld t, in Ship ship)
-    {
-        float4x4 translation = float4x4.Translate(ship.nextPos);
-        float angle = math.radians(Vector3.SignedAngle(Vector3.right, ship.facing, Vector3.forward));
-        float4x4 rotation = float4x4.RotateZ(angle);
-        t.Value = math.mul(translation, math.mul(math.mul(rotation, ship.initialRotation), ship.initialScale));
+        ship.vel = nt.nextPos - current;
     }
 }
 
@@ -429,12 +267,8 @@ public partial struct ShipSystem : ISystem
         systemState.Dependency = new UpdatePlayerShipJob { timeData = SystemAPI.Time }.ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new UpdateShipsWithStationsJob { stationEntities = stationEntities, stationData = stationData, transformData = transformData, timeData = SystemAPI.Time }.ScheduleParallel(systemState.Dependency);
-
-        //systemState.Dependency = new UpdateHyperspaceJumpJob().ScheduleParallel(systemState.Dependency);
         
         systemState.Dependency = new IntegrateShipsJob { timeData = SystemAPI.Time, transformData = transformData }.ScheduleParallel(systemState.Dependency);
-
-        systemState.Dependency = new UpdateShipTransformsJob().ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new FindClosestNodesJob { transformData = transformData, nodes = nodes, nodeData = nodeData }.ScheduleParallel(systemState.Dependency);
     }

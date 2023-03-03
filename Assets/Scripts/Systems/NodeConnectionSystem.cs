@@ -5,34 +5,6 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
 
-public struct NeedsConnection: IComponentData
-{
-    public Entity connection;
-}
-
-public struct NodeConnection : IComponentData
-{
-    public Entity a;
-    public Entity b;
-
-    public bool IsInvalid()
-    {
-        return a == Entity.Null || b == Entity.Null;
-    }
-
-    public void ReplaceNullEntity(Entity newEntity)
-    {
-        if(a == Entity.Null)
-        {
-            a = newEntity;
-        }
-        else if(b == Entity.Null)
-        {
-            b = newEntity;
-        }
-    }
-}
-
 [BurstCompile]
 public partial struct UpdateConnectionsJob : IJobEntity
 {

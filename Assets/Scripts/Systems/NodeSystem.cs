@@ -8,13 +8,6 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
 
-public struct GridNode : IComponentData
-{
-    public float3 velocity;
-    public bool isDead;
-    public bool isBorder;
-}
-
 [BurstCompile]
 public partial struct ResetNodeVelocitiesJob : IJobEntity
 {
