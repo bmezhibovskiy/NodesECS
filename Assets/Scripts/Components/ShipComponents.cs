@@ -94,7 +94,7 @@ public struct Ship : IComponentData
         {
             return avgPos / (float)numClosest;
         }
-        return prevPos;
+        return prevPos + vel;
     }
 
     public float3 GridPosition(ComponentLookup<LocalToWorld> transformData)

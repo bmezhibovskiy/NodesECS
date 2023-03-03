@@ -14,9 +14,9 @@ public partial struct FindClosestNodesJob : IJobEntity
     [ReadOnly] public ComponentLookup<GridNode> nodeData;
     [ReadOnly] public NativeArray<Entity> nodes;
 
-    void Execute(ref Ship s, in LocalToWorld t)
+    void Execute(ref Ship s, in NextTransform nt)
     {
-        float3 shipPos = t.Position;
+        float3 shipPos = nt.nextPos;
         s.closestNodes = ClosestNodes.empty;
 
         //Instead of just sorting the nodes array,
