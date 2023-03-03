@@ -47,7 +47,7 @@
 					"moduleInfos": [
 						{
 							"type": "Dock",
-							"parameters": [ 0.4, 0.05, 12.0 ]
+							"parameters": [ 0.4, 0.05, 40.0 ]
 						},
 						{
 							"type": "ShipSphereCollider",

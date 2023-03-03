@@ -110,10 +110,18 @@ public struct StationModules
     }
 }
 
-public struct Station : IComponentData
+public struct Station: IComponentData
 {
     public FixedString128Bytes displayName;
     public float size;
     public int factionIndex;
     public StationModules modules;
+}
+
+public struct Docked: IComponentData
+{
+    public Entity dockedAt;
+    public bool isUndocking;
+    public float3 initialPos;
+    public float3 initialFacing;
 }

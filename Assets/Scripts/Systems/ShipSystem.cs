@@ -1,5 +1,6 @@
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Core;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -58,39 +59,39 @@ public partial struct FindClosestNodesJob : IJobEntity
 public partial struct UpdatePlayerShipJob: IJobEntity
 {
     [ReadOnly] public TimeData timeData; 
-    void Execute(ref Ship ship, ref NextTransform facing, Player p)
+    void Execute(ref Ship ship, ref NextTransform nt, ref Docked docked, in Player p)
     {
         float dt = timeData.DeltaTime;
         float rspeed = ship.rotationSpeed * dt;
         float fspeed = ship.thrust;
-        if (ship.dockedAt == Entity.Null && !ship.PreparingHyperspace())
+        if (docked.dockedAt == Entity.Null && !ship.PreparingHyperspace())
         {
             if (Globals.sharedInputState.Data.RotateLeftKeyDown)
             {
-                facing.Rotate(rspeed);
+                nt.Rotate(rspeed);
             }
             if (Globals.sharedInputState.Data.RotateRightKeyDown)
             {
-                facing.Rotate(-rspeed);
+                nt.Rotate(-rspeed);
             }
             if (Globals.sharedInputState.Data.ForwardThrustKeyDown)
             {
-                ship.AddThrust(fspeed * facing.facing);
+                ship.AddThrust(fspeed * nt.facing);
             }
             if (Globals.sharedInputState.Data.ReverseThrustKeyDown)
             {
-                ship.AddThrust(-fspeed * facing.facing);
+                ship.AddThrust(-fspeed * nt.facing);
             }
         }
         if (Globals.sharedInputState.Data.AfterburnerKeyDown)
         {
-            if (ship.dockedAt == Entity.Null)
+            if (docked.dockedAt == Entity.Null)
             {
-                ship.AddThrust(fspeed * 2.0f * facing.facing);
+                ship.AddThrust(fspeed * 2.0f * nt.facing);
             }
             else
             {
-                ship.isUndocking = true;
+                docked.isUndocking = true;
             }
         }
         if (Globals.sharedInputState.Data.HyperspaceKeyDown)
@@ -118,9 +119,10 @@ public partial struct UpdateShipsWithStationsJob: IJobEntity
     [ReadOnly] public NativeArray<Entity> stationEntities;
     [ReadOnly] public ComponentLookup<LocalToWorld> transformData;
     [ReadOnly] public ComponentLookup<Station> stationData;
+    [NativeDisableContainerSafetyRestriction] [ReadOnly] public ComponentLookup<NextTransform> nextTransformData;
     [ReadOnly] public TimeData timeData;
 
-    void Execute(ref Ship ship, ref NextTransform nt)
+    void Execute(ref Ship ship, ref NextTransform nt, ref Docked docked)
     {
         float3 shipPos = nt.nextPos;
         float dt = timeData.DeltaTime;
@@ -158,7 +160,7 @@ public partial struct UpdateShipsWithStationsJob: IJobEntity
                         float pullStrength = sm.GetParam(1);
                         float perpendicularStrength = sm.GetParam(2);
 
-                        float3 dir2 = math.cross(dir, new float3(0,0,1));
+                        float3 dir2 = math.cross(dir, new float3(0, 0, 1));
                         //Inverse r squared law generalizes to inverse r^(dim-1)
                         //However, we need to multiply denom by dir.magnitude to normalize dir
                         //So that cancels with the fObj.dimension - 1, removing the - 1
@@ -174,12 +176,14 @@ public partial struct UpdateShipsWithStationsJob: IJobEntity
                         float undockThrust = sm.GetParam(2);
                         float totalUndockSize = station.size + ship.size + undockDistance;
 
-                        if (ship.dockedAt == Entity.Null && math.distancesq(ship.vel, float3.zero) / dt2 < sqrMaxDockingSpeed)
+                        if (docked.dockedAt == Entity.Null && math.distancesq(ship.vel, float3.zero) / dt2 < sqrMaxDockingSpeed)
                         {
                             if (distSq < totalUndockSize * totalUndockSize)
-                            {   
-                                ship.isUndocking = false;
-                                ship.dockedAt = stationEntity;
+                            {
+                                docked.isUndocking = false;
+                                docked.dockedAt = stationEntity;
+                                docked.initialPos = shipPos;
+                                docked.initialFacing = nextTransformData[stationEntity].facing;
                                 ship.prevPos = shipPos;
                                 ship.accel = float3.zero;
                                 ship.vel = float3.zero;
@@ -187,17 +191,25 @@ public partial struct UpdateShipsWithStationsJob: IJobEntity
                                 nt.facing = normalizedDir;
                             }
                         }
-                        else if (ship.isUndocking && ship.dockedAt == stationEntity)
+                        else if (docked.dockedAt == stationEntity)
                         {
-                            nt.facing = normalizedDir;
-                            if (distSq < totalUndockSize * totalUndockSize)
+                            if (docked.isUndocking)
                             {
-                                ship.AddThrust(undockThrust);
+                                nt.facing = normalizedDir;
+                                if (distSq < totalUndockSize * totalUndockSize)
+                                {
+                                    ship.AddThrust(nt.facing * undockThrust);
+                                }
+                                else
+                                {
+                                    docked.dockedAt = Entity.Null;
+                                    docked.isUndocking = false;
+                                }
                             }
                             else
                             {
-                                ship.dockedAt = Entity.Null;
-                                ship.isUndocking = false;
+
+                                ship.prevPos = nt.nextPos;
                             }
                         }
                         break;
@@ -214,9 +226,9 @@ public partial struct IntegrateShipsJob: IJobEntity
 {
     [ReadOnly] public TimeData timeData;
     [ReadOnly] public ComponentLookup<LocalToWorld> transformData;
-    void Execute(ref Ship ship, ref NextTransform nt)
+    void Execute(ref Ship ship, ref NextTransform nt, in Docked docked)
     {
-        if(ship.dockedAt != Entity.Null && !ship.isUndocking) { return; }
+        if(docked.dockedAt != Entity.Null && !docked.isUndocking) { return; }
         if(ship.PreparingHyperspace()) { return; }
 
         float dt = timeData.DeltaTime;
@@ -233,6 +245,7 @@ public partial struct IntegrateShipsJob: IJobEntity
 public partial struct ShipSystem : ISystem
 {
     [ReadOnly] private ComponentLookup<LocalToWorld> transformData;
+    [ReadOnly] private ComponentLookup<NextTransform> nextTransformData;
     [ReadOnly] private ComponentLookup<Station> stationData;
     [ReadOnly] private ComponentLookup<GridNode> nodeData;
 
@@ -243,6 +256,7 @@ public partial struct ShipSystem : ISystem
     public void OnCreate(ref SystemState systemState)
     {
         transformData = SystemAPI.GetComponentLookup<LocalToWorld>();
+        nextTransformData = SystemAPI.GetComponentLookup<NextTransform>();
         stationData = SystemAPI.GetComponentLookup<Station>();
         nodeData = SystemAPI.GetComponentLookup<GridNode>();
 
@@ -258,6 +272,7 @@ public partial struct ShipSystem : ISystem
     public void OnUpdate(ref SystemState systemState)
     {
         transformData.Update(ref systemState);
+        nextTransformData.Update(ref systemState);
         stationData.Update(ref systemState);
         nodeData.Update(ref systemState);
 
@@ -266,7 +281,7 @@ public partial struct ShipSystem : ISystem
 
         systemState.Dependency = new UpdatePlayerShipJob { timeData = SystemAPI.Time }.ScheduleParallel(systemState.Dependency);
 
-        systemState.Dependency = new UpdateShipsWithStationsJob { stationEntities = stationEntities, stationData = stationData, transformData = transformData, timeData = SystemAPI.Time }.ScheduleParallel(systemState.Dependency);
+        systemState.Dependency = new UpdateShipsWithStationsJob { stationEntities = stationEntities, stationData = stationData, transformData = transformData, timeData = SystemAPI.Time, nextTransformData = nextTransformData }.ScheduleParallel(systemState.Dependency);
         
         systemState.Dependency = new IntegrateShipsJob { timeData = SystemAPI.Time, transformData = transformData }.ScheduleParallel(systemState.Dependency);
 

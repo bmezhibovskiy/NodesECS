@@ -59,10 +59,10 @@ public partial struct UpdateTransformSystem : ISystem
     {
         transformData.Update(ref systemState);
 
-        systemState.Dependency = new UpdateTransformsJob().ScheduleParallel(systemState.Dependency);
-
         systemState.Dependency = new PopulateParentTransformJob { transformData = transformData }.ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new UpdateChildTransformJob().ScheduleParallel(systemState.Dependency);
+
+        systemState.Dependency = new UpdateTransformsJob().ScheduleParallel(systemState.Dependency);
     }
 }

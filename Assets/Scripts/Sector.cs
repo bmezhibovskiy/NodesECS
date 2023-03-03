@@ -8,11 +8,6 @@ using System.Collections.Generic;
 using UnityEngine.Rendering;
 using System.Linq;
 
-public struct DestroyOnLevelUnload: IComponentData
-{
-
-}
-
 public class Sector : MonoBehaviour
 {
     Map parent;
@@ -40,7 +35,6 @@ public class Sector : MonoBehaviour
     void Start()
     {
     }
-
 
     public void Initialize(SectorInfo info, Camera mainCamera, Map parent, Dictionary<string, PartsRenderInfo> partsRenderInfos, ShipInfos shipInfos, StationTypeInfos stationInfos)
     {
@@ -199,7 +193,7 @@ public class Sector : MonoBehaviour
         EntityArchetype ea = em.CreateArchetype(typeof(Station));
         Entity e = em.CreateEntity(ea);
         em.AddComponentData(e, new LocalToWorld { Value = float4x4.Translate(pos) });
-        em.AddComponentData(e, new NextTransform { facing = new float3(1, 0, 0) });
+        em.AddComponentData(e, new NextTransform { facing = new float3(1, 0, 0), nextPos = pos });
 
         StationModules modules = new StationModules();
         foreach(StationModuleInfo moduleInfo in moduleInfos)
@@ -216,6 +210,12 @@ public class Sector : MonoBehaviour
         em.AddComponentData(e, new DestroyOnLevelUnload());
 
         StationTypeInfo info = stationTypeInfos[type];
+        em.AddComponentData(e, new InitialTransform
+        {
+            initialScale = float4x4.Scale(info.displayInfo.initialScale),
+            initialRotation = math.mul(float4x4.RotateX(math.radians(info.displayInfo.initialRotationDegrees[0])), math.mul(float4x4.RotateY(math.radians(info.displayInfo.initialRotationDegrees[1])), float4x4.RotateZ(math.radians(info.displayInfo.initialRotationDegrees[2]))))
+        });
+
         lightObjects[e] = new List<GameObject>();
         foreach (LightInfo li in info.displayInfo.lights)
         {
@@ -269,11 +269,11 @@ public class Sector : MonoBehaviour
             accel = float3.zero,
             vel = float3.zero,
             thrust = info.thrust,
-            rotationSpeed = info.rotationSpeed,
-            dockedAt = Entity.Null,
-            isUndocking = false
+            rotationSpeed = info.rotationSpeed
+            
         };
         em.AddComponentData(e, s);
+        em.AddComponentData(e, new Docked { dockedAt = Entity.Null, isUndocking = false });
         if (isPlayer)
         {
             em.AddComponentData(e, new Player { });
