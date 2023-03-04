@@ -3,8 +3,17 @@
         {
             "name": "Trade1",
             "displayInfo": {
-                "initialScale": 0.12,
-                "initialRotationDegrees": [ 90, 0, 180 ],
+                "initialScale": 0.2,
+                "initialRotationDegrees": {
+                    "x": 90,
+                    "y": 0,
+                    "z": 180
+                },
+                "anchor": {
+                    "x": -0.3,
+                    "y": 0,
+                    "z": 0
+                },
                 "path": "Art/Ships/TradeSmall",
                 "meshBundle": "TradeSmall_Ship",
                 "parts": [

@@ -7,6 +7,7 @@ using Unity.Rendering;
 using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.UIElements;
 
 public class PartRenderInfo
 {
@@ -53,15 +54,18 @@ public class PartsRenderInfo
         parts[name] = info;
     }
 
-    public void AddRenderComponents(EntityManager em, Entity parent)
+    public void AddRenderComponents(EntityManager em, Entity parent, float3 anchor, float3 rotation, float scale)
     {
         foreach (KeyValuePair<string, PartRenderInfo> pair in parts)
         {
             Entity child = em.CreateEntity();
             em.AddComponentData(child, new Parent { Value = parent });
-            float4x4 transform = pair.Value.transform.localToWorldMatrix;
+            float4x4 anchorTransform = float4x4.Translate(anchor);
+            float4x4 rotationTransform = math.mul(float4x4.RotateX(math.radians(rotation.x)), math.mul(float4x4.RotateY(math.radians(rotation.y)), float4x4.RotateZ(math.radians(rotation.z))));
+            float4x4 scaleTransform = float4x4.Scale(scale);
+            float4x4 transform = math.mul(anchorTransform, math.mul(rotationTransform, math.mul(scaleTransform, pair.Value.transform.localToWorldMatrix)));
             em.AddComponentData(child, new LocalToWorld { Value = transform });
-            em.AddComponentData(child, new RelativeTransform { Value = transform, lastParentValue = float4x4.zero });
+            em.AddComponentData(child, new RelativeTransform { Value = transform, lastParentValue = em.GetComponentData<LocalToWorld>(parent).Value });
             em.AddComponentData(child, new DestroyOnLevelUnload());
 
             RenderMeshDescription rmd = new RenderMeshDescription(ShadowCastingMode.On, true);

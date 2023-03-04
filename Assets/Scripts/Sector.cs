@@ -193,7 +193,7 @@ public class Sector : MonoBehaviour
         EntityArchetype ea = em.CreateArchetype(typeof(Station));
         Entity e = em.CreateEntity(ea);
         em.AddComponentData(e, new LocalToWorld { Value = float4x4.Translate(pos) });
-        em.AddComponentData(e, new NextTransform { facing = new float3(1, 0, 0), nextPos = pos });
+        em.AddComponentData(e, new NextTransform { facing = new float3(1, 0, 0), nextPos = pos, scale = 1f });
 
         StationModules modules = new StationModules();
         foreach(StationModuleInfo moduleInfo in moduleInfos)
@@ -210,18 +210,13 @@ public class Sector : MonoBehaviour
         em.AddComponentData(e, new DestroyOnLevelUnload());
 
         StationTypeInfo info = stationTypeInfos[type];
-        em.AddComponentData(e, new InitialTransform
-        {
-            initialScale = float4x4.Scale(info.displayInfo.initialScale),
-            initialRotation = math.mul(float4x4.RotateX(math.radians(info.displayInfo.initialRotationDegrees[0])), math.mul(float4x4.RotateY(math.radians(info.displayInfo.initialRotationDegrees[1])), float4x4.RotateZ(math.radians(info.displayInfo.initialRotationDegrees[2]))))
-        });
 
         lightObjects[e] = new List<GameObject>();
         foreach (LightInfo li in info.displayInfo.lights)
         {
             AddLight(e, pos, li);
         }
-        partsRenderInfos[type].AddRenderComponents(em, e);
+        partsRenderInfos[type].AddRenderComponents(em, e, info.displayInfo.anchor, info.displayInfo.initialRotationDegrees, info.displayInfo.initialScale);
     }
 
     private StationModuleType StationModuleTypeFromString(string str)
@@ -253,12 +248,7 @@ public class Sector : MonoBehaviour
 
         ShipInfo info = shipInfos[name];
 
-        em.AddComponentData(e, new InitialTransform {
-            initialScale = float4x4.Scale(info.displayInfo.initialScale),
-            initialRotation = math.mul(float4x4.RotateX(math.radians(info.displayInfo.initialRotationDegrees[0])), math.mul(float4x4.RotateY(math.radians(info.displayInfo.initialRotationDegrees[1])), float4x4.RotateZ(math.radians(info.displayInfo.initialRotationDegrees[2]))))
-        });
-
-        em.AddComponentData(e, new NextTransform { facing = new float3(1, 0, 0), nextPos = pos });
+        em.AddComponentData(e, new NextTransform { facing = new float3(1, 0, 0), nextPos = pos, scale = 1f });
 
         Ship s = new Ship
         {
@@ -285,7 +275,7 @@ public class Sector : MonoBehaviour
         {
             AddLight(e, pos, li);
         }
-        partsRenderInfos[name].AddRenderComponents(em, e);
+        partsRenderInfos[name].AddRenderComponents(em, e, info.displayInfo.anchor, info.displayInfo.initialRotationDegrees, info.displayInfo.initialScale);
 
         return e;
     }

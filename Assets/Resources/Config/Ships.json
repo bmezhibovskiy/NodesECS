@@ -6,7 +6,16 @@
             "rotationSpeed": 4.0,
             "displayInfo": {
                 "initialScale": 0.12,
-                "initialRotationDegrees": [ 90, 0, 180 ],
+                "initialRotationDegrees": {
+                    "x": 90,
+                    "y": 0,
+                    "z": 180
+                },
+                "anchor": {
+                    "x": -0.18,
+                    "y": 0,
+                    "z": 0
+                },
                 "path": "Art/Ships/TradeSmall",
                 "meshBundle": "TradeSmall_Ship",
                 "parts": [

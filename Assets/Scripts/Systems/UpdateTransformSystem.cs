@@ -8,12 +8,13 @@ using UnityEngine;
 [BurstCompile]
 public partial struct UpdateTransformsJob : IJobEntity
 {
-    void Execute(ref LocalToWorld t, in NextTransform nt, in InitialTransform it)
+    void Execute(ref LocalToWorld t, in NextTransform nt)
     {
         float4x4 translation = float4x4.Translate(nt.nextPos);
         float angle = math.radians(Vector3.SignedAngle(Vector3.right, nt.facing, Vector3.forward));
         float4x4 rotation = float4x4.RotateZ(angle);
-        t.Value = math.mul(translation, math.mul(math.mul(rotation, it.initialRotation), it.initialScale));
+        float4x4 scale = float4x4.Scale(nt.scale);
+        t.Value = math.mul(translation, math.mul(rotation, scale));
     }
 }
 

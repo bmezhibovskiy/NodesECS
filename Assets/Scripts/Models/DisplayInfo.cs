@@ -55,7 +55,8 @@ public struct PartDisplayInfo
 public struct DisplayInfo
 {
     public float initialScale;
-    public float[] initialRotationDegrees;
+    public float3 initialRotationDegrees;
+    public float3 anchor;
     public string path;
     public string meshBundle;
     public PartDisplayInfo[] parts;
