@@ -49,6 +49,56 @@
                     }
                 ]
             }
+        },
+        {
+            "name": "Tribal1Small",
+            "displayInfo": {
+                "initialScale": 50.0,
+                "initialRotationDegrees": {
+                    "x": 0,
+                    "y": 0,
+                    "z": 0
+                },
+                "anchor": {
+                    "x": 0,
+                    "y": 0,
+                    "z": 0
+                },
+                "path": "Art/Stations/Tribal1",
+                "meshBundle": "TribalStation1v1",
+                "parts": [
+                    {
+                        "mesh": "Tribal Station 1 Early WIP",
+                        "material": "TestMaterial"
+                    }
+                ],
+                "lights": [
+                    {
+                        "relativePos": [ 1.2, 0, -0.2 ],
+                        "relativeFacing": [ 0, 0, 0.02 ],
+                        "spotAngleDegrees": 70,
+                        "spotInnerAngleDegrees": 50,
+                        "colorRGBA": [ 0, 1, 0, 1 ],
+                        "intensity": 550.0
+                    },
+                    {
+                        "relativePos": [ 0.0, 0, -0.4 ],
+                        "relativeFacing": [ -2, 0, 0.05 ],
+                        "spotAngleDegrees": 70,
+                        "spotInnerAngleDegrees": 50,
+                        "colorRGBA": [ 1, 0, 0, 1 ],
+                        "intensity": 350.0
+                    },
+                    {
+                        "relativePos": [ 0.0, 0, -1.0 ],
+                        "relativeFacing": [ -1, 0, 1.0 ],
+                        "spotAngleDegrees": 90,
+                        "spotInnerAngleDegrees": 70,
+                        "colorRGBA": [ 0, 0, 1, 1 ],
+                        "intensity": 150.0
+                    }
+                ]
+            }
         }
     ]
 }

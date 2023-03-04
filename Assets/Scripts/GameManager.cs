@@ -33,6 +33,8 @@ public struct InputState
     public bool RotateRightKeyDown;
     public bool HyperspaceKeyDown;
     public bool LightsKeyPressed;
+    public bool PrimaryWeaponKeyDown;
+    public bool SecondaryWeaponKeyDown;
 
     public void Initialize()
     {
@@ -43,6 +45,8 @@ public struct InputState
         RotateRightKeyDown = false;
         HyperspaceKeyDown = false;
         LightsKeyPressed = false;
+        PrimaryWeaponKeyDown = false;
+        SecondaryWeaponKeyDown = false;
     }
 }
 
@@ -136,13 +140,15 @@ public class GameManager : MonoBehaviour
 
     private void UpdateInput()
     {
-        Globals.sharedInputState.Data.AfterburnerKeyDown = Input.GetKey(KeyCode.Space);
+        Globals.sharedInputState.Data.AfterburnerKeyDown = Input.GetKey(KeyCode.Z);
         Globals.sharedInputState.Data.ForwardThrustKeyDown = Input.GetKey(KeyCode.UpArrow);
         Globals.sharedInputState.Data.ReverseThrustKeyDown = Input.GetKey(KeyCode.DownArrow);
         Globals.sharedInputState.Data.RotateLeftKeyDown = Input.GetKey(KeyCode.LeftArrow);
         Globals.sharedInputState.Data.RotateRightKeyDown = Input.GetKey(KeyCode.RightArrow);
         Globals.sharedInputState.Data.HyperspaceKeyDown = Input.GetKey(KeyCode.H);
         Globals.sharedInputState.Data.LightsKeyPressed = Input.GetKeyDown(KeyCode.L);
+        Globals.sharedInputState.Data.PrimaryWeaponKeyDown = Input.GetKey(KeyCode.Space);
+        Globals.sharedInputState.Data.SecondaryWeaponKeyDown = Input.GetKeyDown(KeyCode.X);
     }
 
 

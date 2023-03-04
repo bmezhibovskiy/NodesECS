@@ -11,7 +11,7 @@ public partial struct RotateStationsJob : IJobEntity
 {
     void Execute(ref NextTransform nt, in Station s)
     {
-        float rSpeed = 0.01f;
+        float rSpeed = 0.002f;
         nt.Rotate(rSpeed);
     }
 }
@@ -43,15 +43,6 @@ public partial struct UpdateDockedJob : IJobEntity
 }
 
 [BurstCompile]
-public partial struct RenderStationsJob: IJobEntity
-{
-    void Execute(in Station s, in LocalToWorld t)
-    {
-        Utils.DebugDrawCircle(t.Position, s.size, Color.white, 20);
-    }
-}
-
-[BurstCompile]
 public partial struct StationSystem : ISystem
 {
     [ReadOnly] private ComponentLookup<LocalToWorld> transformData;
@@ -78,7 +69,5 @@ public partial struct StationSystem : ISystem
         systemState.Dependency = new RotateStationsJob().ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new UpdateDockedJob { transformData = transformData, nextTransformData = nextTransformData }.ScheduleParallel(systemState.Dependency);
-
-        systemState.Dependency = new RenderStationsJob().ScheduleParallel(systemState.Dependency);   
     }
 }
