@@ -1,5 +1,7 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using Unity.Assertions;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -9,12 +11,14 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.UIElements;
 
+#nullable enable
+
 public class PartRenderInfo
 {
     public Mesh mesh;
     public Material material;
-    public Transform transform;
-    public PartRenderInfo(Mesh mesh, Material material, Transform transform)
+    public Transform? transform;
+    public PartRenderInfo(Mesh mesh, Material material, Transform? transform)
     {
         this.mesh = mesh;
         this.material = material;
@@ -33,17 +37,28 @@ public class PartsRenderInfo
         }
         PartsRenderInfo pri = new PartsRenderInfo();
         string meshBundlePath = displayInfo.path + "/" + displayInfo.meshBundle;
-        GameObject containerObject = Resources.Load(meshBundlePath) as GameObject;
-        for (int i = 0; i < containerObject.transform.childCount; ++i)
+        GameObject? containerObject = Resources.Load(meshBundlePath) as GameObject;
+        if(containerObject == null) { return pri; }
+        int numChildren = containerObject.transform.childCount;
+        if (numChildren <= 0)
         {
-            Transform childTransform = containerObject.transform.GetChild(i);
-            GameObject child = childTransform.gameObject;
-            Mesh mesh = child.GetComponent<MeshFilter>().sharedMesh;
-            Assert.IsNotNull(mesh);
-            Material mat = materials[child.name];
-            Assert.IsNotNull(mat);
-            pri.AddPart(child.name, new PartRenderInfo(mesh, mat, childTransform));
+            Mesh mesh = containerObject.GetComponent<MeshFilter>().sharedMesh;
+            KeyValuePair<string, Material> firstMat = materials.First();
+            pri.AddPart(firstMat.Key, new PartRenderInfo(mesh, firstMat.Value, null));
+        }
+        else
+        {
+            for (int i = 0; i < numChildren; ++i)
+            {
+                Transform childTransform = containerObject.transform.GetChild(i);
+                GameObject child = childTransform.gameObject;
+                Mesh mesh = child.GetComponent<MeshFilter>().sharedMesh;
+                Assert.IsNotNull(mesh);
+                Material mat = materials[child.name];
+                Assert.IsNotNull(mat);
+                pri.AddPart(child.name, new PartRenderInfo(mesh, mat, childTransform));
 
+            }
         }
         return pri;
     }
@@ -63,7 +78,13 @@ public class PartsRenderInfo
             float4x4 anchorTransform = float4x4.Translate(anchor);
             float4x4 rotationTransform = math.mul(float4x4.RotateX(math.radians(rotation.x)), math.mul(float4x4.RotateY(math.radians(rotation.y)), float4x4.RotateZ(math.radians(rotation.z))));
             float4x4 scaleTransform = float4x4.Scale(scale);
-            float4x4 transform = math.mul(anchorTransform, math.mul(rotationTransform, math.mul(scaleTransform, pair.Value.transform.localToWorldMatrix)));
+            float4x4 baseTransform = float4x4.identity;
+            Transform? transformObject = pair.Value.transform;
+            if(transformObject != null)
+            {
+                baseTransform = transformObject.localToWorldMatrix;
+            }
+            float4x4 transform = math.mul(anchorTransform, math.mul(rotationTransform, math.mul(scaleTransform, baseTransform)));
             em.AddComponentData(child, new LocalToWorld { Value = transform });
             em.AddComponentData(child, new RelativeTransform { Value = transform, lastParentValue = em.GetComponentData<LocalToWorld>(parent).Value });
             em.AddComponentData(child, new DestroyOnLevelUnload());

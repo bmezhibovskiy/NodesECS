@@ -1,45 +1,25 @@
 {
     "stations": [
         {
-            "name": "Trade1",
+            "name": "Tribal1",
             "displayInfo": {
-                "initialScale": 0.2,
+                "initialScale": 100.0,
                 "initialRotationDegrees": {
-                    "x": 90,
-                    "y": 0,
-                    "z": 180
-                },
-                "anchor": {
-                    "x": -0.3,
+                    "x": 0,
                     "y": 0,
                     "z": 0
                 },
-                "path": "Art/Ships/TradeSmall",
-                "meshBundle": "TradeSmall_Ship",
+                "anchor": {
+                    "x": 0,
+                    "y": 0,
+                    "z": 0
+                },
+                "path": "Art/Stations/Tribal1",
+                "meshBundle": "TribalStation1v1",
                 "parts": [
                     {
-                        "mesh": "Cockpit",
-                        "material": "TradeSmall_Cockpit"
-                    },
-                    {
-                        "mesh": "Engines",
-                        "material": "TradeSmall_Engines"
-                    },
-                    {
-                        "mesh": "Main Hull",
-                        "material": "TradeSmall_Main Hull"
-                    },
-                    {
-                        "mesh": "Rear Hull Piece",
-                        "material": "TradeSmall_Rear Hull Piece"
-                    },
-                    {
-                        "mesh": "Square Engines",
-                        "material": "TradeSmall_Square Engines"
-                    },
-                    {
-                        "mesh": "Wings",
-                        "material": "TradeSmall_Wings"
+                        "mesh": "Tribal Station 1 Early WIP",
+                        "material": "TestMaterial"
                     }
                 ],
                 "lights": [
