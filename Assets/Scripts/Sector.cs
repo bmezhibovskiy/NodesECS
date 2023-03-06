@@ -259,9 +259,13 @@ public class Sector : MonoBehaviour
             accel = float3.zero,
             vel = float3.zero,
             thrust = info.thrust,
-            rotationSpeed = info.rotationSpeed
-            
+            rotationSpeed = info.rotationSpeed,
+            weaponSlots = WeaponSlots.Empty,
+            shootingPrimary = false,
+            shootingSecondary = false,
+            target = Entity.Null
         };
+        s.weaponSlots.Set(new WeaponSlot { type = WeaponType.StraightRocket, relativePos = new float3(0, 0, 0), damage = 10f, speed = 2f, isSecondary = false, secondsBetweenFire = 0.5f, lastFireSeconds = 0 }, 0);
         em.AddComponentData(e, s);
         em.AddComponentData(e, new Docked { dockedAt = Entity.Null, isUndocking = false });
         if (isPlayer)

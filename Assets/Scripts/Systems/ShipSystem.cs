@@ -82,6 +82,9 @@ public partial struct UpdatePlayerShipJob: IJobEntity
             {
                 ship.AddThrust(-fspeed * nt.facing);
             }
+
+            ship.shootingPrimary = Globals.sharedInputState.Data.PrimaryWeaponKeyDown;
+            ship.shootingSecondary = Globals.sharedInputState.Data.SecondaryWeaponKeyDown;
         }
         if (Globals.sharedInputState.Data.AfterburnerKeyDown)
         {
@@ -242,6 +245,41 @@ public partial struct IntegrateShipsJob: IJobEntity
 }
 
 [BurstCompile]
+public partial struct ShootWeaponsJob: IJobEntity
+{
+    [ReadOnly] public TimeData timeData;
+    public EntityCommandBuffer.ParallelWriter ecb;
+    void Execute(ref Ship ship, in NextTransform nt, [EntityIndexInQuery] int entityInQueryIndex)
+    {
+        double currentTime = timeData.ElapsedTime;
+        for(int i = 0; i < WeaponSlots.MaxWeaponSlots; ++i)
+        {
+            WeaponSlot current = ship.weaponSlots.Get(i);
+            if(current.Equals(WeaponSlot.Empty)) { continue; }
+            if(currentTime - current.lastFireSeconds < current.secondsBetweenFire) { continue; }
+            if(current.isSecondary && !ship.shootingSecondary || !current.isSecondary && !ship.shootingPrimary) { continue; }
+            ship.weaponSlots.Fire(i, (float)currentTime);
+            float3 newPos = nt.nextPos + current.relativePos;
+            switch (current.type)
+            {
+                case WeaponType.StraightRocket:
+                    Entity newRocket = ecb.Instantiate(entityInQueryIndex, Globals.sharedPrototypes.Data.nodePrototype);
+                    float scale = 0.5f;
+                    float4x4 localToWorldData = math.mul(float4x4.Translate(newPos), float4x4.Scale(scale));
+                    ecb.AddComponent(entityInQueryIndex, newRocket, new LocalToWorld { Value = localToWorldData });
+                    ecb.AddComponent(entityInQueryIndex, newRocket, new Accelerating { prevPos = newPos, accel = float3.zero, nodeOffset = float3.zero, vel = float3.zero });
+                    ecb.AddComponent(entityInQueryIndex, newRocket, new NextTransform { nextPos = newPos, scale = 1.0f, facing = nt.facing });
+                    ecb.AddComponent(entityInQueryIndex, newRocket, new ConstantThrust { thrust = nt.facing * 10.1f });
+                    ecb.AddComponent(entityInQueryIndex, newRocket, new DestroyOnLevelUnload());
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+}
+
+[BurstCompile]
 public partial struct ShipSystem : ISystem
 {
     [ReadOnly] private ComponentLookup<LocalToWorld> transformData;
@@ -276,10 +314,14 @@ public partial struct ShipSystem : ISystem
         stationData.Update(ref systemState);
         nodeData.Update(ref systemState);
 
+        EndSimulationEntityCommandBufferSystem.Singleton ecbSystem = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>();
+
         NativeArray<Entity> stationEntities = stationsQuery.ToEntityArray(systemState.WorldUpdateAllocator);
         NativeArray<Entity> nodes = nodesQuery.ToEntityArray(systemState.WorldUpdateAllocator);
 
         systemState.Dependency = new UpdatePlayerShipJob { timeData = SystemAPI.Time }.ScheduleParallel(systemState.Dependency);
+
+        systemState.Dependency = new ShootWeaponsJob { timeData = SystemAPI.Time, ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new UpdateShipsWithStationsJob { stationEntities = stationEntities, stationData = stationData, transformData = transformData, timeData = SystemAPI.Time, nextTransformData = nextTransformData }.ScheduleParallel(systemState.Dependency);
         

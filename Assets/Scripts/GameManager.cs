@@ -53,6 +53,7 @@ public struct InputState
 public struct EntityPrototypes
 {
     public Entity nodePrototype;
+    public Entity rocket1Prototype;
 }
 
 public struct LevelInfo
@@ -80,6 +81,12 @@ public class GameManager : MonoBehaviour
 
     [SerializeField]
     Material nodeMaterial;
+
+    [SerializeField]
+    Mesh rocketMesh;
+
+    [SerializeField]
+    Material rocketMaterial;
 
     ShipInfos shipInfos;
     StationTypeInfos stationTypeInfos;
@@ -128,6 +135,13 @@ public class GameManager : MonoBehaviour
         RenderMeshUtility.AddComponents(nodePrototype, em, rmd, renderMeshArray, MaterialMeshInfo.FromRenderMeshArrayIndices(0, 0));
 
         Globals.sharedPrototypes.Data.nodePrototype = nodePrototype;
+
+        Entity rocket1Prototype = em.CreateEntity(ea);
+        RenderMeshArray renderMeshArray2 = new RenderMeshArray(new Material[] { rocketMaterial }, new Mesh[] { rocketMesh });
+        RenderMeshUtility.AddComponents(rocket1Prototype, em, rmd, renderMeshArray2, MaterialMeshInfo.FromRenderMeshArrayIndices(0, 0));
+
+        Globals.sharedPrototypes.Data.rocket1Prototype = rocket1Prototype;
+
     }
 
     // Update is called once per frame

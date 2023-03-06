@@ -1,56 +1,91 @@
+using System;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
 
-public struct ClosestNodes
+public enum WeaponType
 {
-    public readonly static int numClosestNodes = 3;
-    public readonly static ClosestNodes empty = new ClosestNodes
+    StraightRocket, HomingRocket, StraightLaser, TurretLaser
+}
+
+public struct WeaponSlot: IEquatable<WeaponSlot>
+{
+    public readonly static WeaponSlot Empty = new WeaponSlot { slotIndex = 0 };
+
+    public int slotIndex;
+    public float3 relativePos;
+
+    public WeaponType type;
+    public float speed;
+    public float damage;
+    public bool isSecondary;
+    public float secondsBetweenFire;
+    public float lastFireSeconds;
+
+    public bool Equals(WeaponSlot other)
     {
-        closestNode1 = Entity.Null,
-        closestNode2 = Entity.Null,
-        closestNode3 = Entity.Null
-    };
+        return slotIndex == other.slotIndex;
+    }
+}
 
-    public Entity closestNode1;
-    public Entity closestNode2;
-    public Entity closestNode3;
+public struct WeaponSlots
+{
+    public readonly static int MaxWeaponSlots = 3;
+    public readonly static WeaponSlots Empty = new WeaponSlots { slot1 = WeaponSlot.Empty, slot2 = WeaponSlot.Empty, slot3 = WeaponSlot.Empty };
 
-    public Entity Get(int index)
+    public WeaponSlot slot1;
+    public WeaponSlot slot2;
+    public WeaponSlot slot3;
+
+    public WeaponSlot Get(int index)
     {
         switch (index)
         {
             case 0:
-                return closestNode1;
+                return slot1;
             case 1:
-                return closestNode2;
+                return slot2;
             case 2:
-                return closestNode3;
+                return slot3;
             default:
-                return Entity.Null;
+                return WeaponSlot.Empty;
         }
     }
 
-    public void Set(Entity e, int index)
+    public void Set(WeaponSlot w, int index)
     {
+        w.slotIndex = index + 1;
         switch (index)
         {
             case 0:
-                closestNode3 = closestNode2;
-                closestNode2 = closestNode1;
-                closestNode1 = e;
+                slot1 = w;
                 break;
             case 1:
-                closestNode3 = closestNode2;
-                closestNode2 = e;
+                slot2 = w;
                 break;
             case 2:
-                closestNode3 = e;
+                slot3 = w;
                 break;
             default:
                 break;
         }
+    }
+
+    public void Fire(int index, float currentTime)
+    {
+        WeaponSlot w = Get(index);
+        Set(new WeaponSlot
+        {
+            slotIndex = w.slotIndex,
+            damage = w.damage,
+            isSecondary = w.isSecondary,
+            lastFireSeconds = currentTime,
+            relativePos = w.relativePos,
+            secondsBetweenFire = w.secondsBetweenFire,
+            speed = w.speed,
+            type = w.type
+        }, index);
     }
 }
 
@@ -71,6 +106,11 @@ public struct Ship : IComponentData
     public int hyperspaceTarget;
 
     public bool lightsOn;
+
+    public WeaponSlots weaponSlots;
+    public bool shootingPrimary;
+    public bool shootingSecondary;
+    public Entity target;
 
     public void AddThrust(float3 thrust)
     {

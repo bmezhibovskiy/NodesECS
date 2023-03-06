@@ -170,6 +170,8 @@ MonoBehaviour:
   mainCamera: {fileID: 935464055}
   nodeMesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
   nodeMaterial: {fileID: -876546973899608171, guid: 2cfb938f37aa6354f8377a23af475906, type: 3}
+  rocketMesh: {fileID: 4300000, guid: dd38f665ad77be340856868cb8cecb1f, type: 3}
+  rocketMaterial: {fileID: 2100000, guid: e941d0d6425697b499256f89933a0df2, type: 2}
 --- !u!1 &524356878
 GameObject:
   m_ObjectHideFlags: 1
