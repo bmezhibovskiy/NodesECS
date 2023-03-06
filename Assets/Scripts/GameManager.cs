@@ -162,7 +162,7 @@ public class GameManager : MonoBehaviour
         Globals.sharedInputState.Data.HyperspaceKeyDown = Input.GetKey(KeyCode.H);
         Globals.sharedInputState.Data.LightsKeyPressed = Input.GetKeyDown(KeyCode.L);
         Globals.sharedInputState.Data.PrimaryWeaponKeyDown = Input.GetKey(KeyCode.Space);
-        Globals.sharedInputState.Data.SecondaryWeaponKeyDown = Input.GetKeyDown(KeyCode.X);
+        Globals.sharedInputState.Data.SecondaryWeaponKeyDown = Input.GetKey(KeyCode.X);
     }
 
 

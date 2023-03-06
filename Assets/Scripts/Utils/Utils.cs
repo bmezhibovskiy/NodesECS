@@ -31,15 +31,15 @@ public class Utils
         int x = idx % numSideNodes;
         return new int2 { x = x, y = y };
     }
-    public static float3? LineSegmentCircleIntersection(float3 center, float r, float3 start, float3 end)
+    public static float3? LineSegmentCircleIntersection(float3 center, float radius, float3 start, float3 end)
     {
         float3 d = end - start;
         float3 f = start - center;
 
-        float e = 0.0001f;
-        float a = math.dot(d, d);
+        const float e = 0.0001f;
+        float a = math.lengthsq(d);
         float b = 2 * math.dot(f, d);
-        float c = math.dot(f, f) - r * r;
+        float c = math.lengthsq(f) - radius * radius;
 
         //Solve using quadratic formula
         float discriminant = b * b - 4 * a * c;
@@ -57,8 +57,7 @@ public class Utils
         }
 
         //Some other strange intersection case where the start is inside or past the circle
-        float3 dir = start - center;
-        return center + math.normalize(dir) * r;
+        return center + math.normalize(f) * radius;
     }
     public static T FromJsonFile<T>(string fileName)
     {
