@@ -7,6 +7,11 @@ public struct DestroyOnLevelUnload : IComponentData
 
 }
 
+public struct InitialTransform: IComponentData
+{
+    public float4x4 Value;
+}
+
 public struct NextTransform: IComponentData
 {
     public float3 facing;
@@ -107,6 +112,24 @@ public struct Accelerating: IComponentData
     public float3 GridPosition(ComponentLookup<LocalToWorld> transformData)
     {
         return AverageNodePos(transformData) + nodeOffset;
+    }
+    public void HandleCollisionAt(float3 collisionPos, float3 normal, float bounciness = 0.5f)
+    {
+        if (math.lengthsq(vel) < 0.00002f)
+        {
+            //Velocity too small, set to 0 instead of bouncing forever, which can cause instability
+            prevPos = collisionPos;
+            return;
+        }
+
+        //Reflect vel about normal
+        vel = (vel - 2f * math.dot(vel, normal) * normal) * bounciness;
+
+        //Would need time independent accel because otherwise we would need next frame's deltaTime to get the correct bounce
+        //Verlet integration doesn't seem good for velocity based forces, since velocity is derived.
+        //timeIndependentAccel += (-2 * normal * Vector3.Dot(vel, normal)) * bounciness;
+
+        prevPos = collisionPos - vel;
     }
 }
 

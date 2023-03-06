@@ -8,58 +8,10 @@ using Unity.Transforms;
 using UnityEngine;
 
 [BurstCompile]
-public partial struct FindClosestNodesJob : IJobEntity
-{
-    [ReadOnly] public ComponentLookup<LocalToWorld> transformData;
-    [ReadOnly] public ComponentLookup<GridNode> nodeData;
-    [ReadOnly] public NativeArray<Entity> nodes;
-
-    void Execute(ref Ship s, in NextTransform nt)
-    {
-        float3 shipPos = nt.nextPos;
-        s.closestNodes = ClosestNodes.empty;
-
-        //Instead of just sorting the nodes array,
-        //It should be faster to just find the closest K nodes (currently 3)
-        //So, this algorithm has K*N iterations, where N is the total number of nodes
-        //Since K is very small, this has a O(N).
-        //Also, it doesn't require copying an entire array to sort it.
-
-        for (int i = 0; i < nodes.Length; ++i)
-        {
-            GridNode nodeComponent = nodeData[nodes[i]];
-            if (nodeComponent.isDead || nodeComponent.isBorder) { continue; }
-
-            float3 nodePos = transformData[nodes[i]].Position;
-            float newSqMag = math.distancesq(nodePos, shipPos);
-
-            for (int j = 0; j < ClosestNodes.numClosestNodes; ++j)
-            {
-                Entity currentClosest = s.closestNodes.Get(j);
-                if (!transformData.HasComponent(currentClosest))
-                {
-                    s.closestNodes.Set(nodes[i], j);
-                    break;
-                }
-
-                float3 currentPos = transformData[currentClosest].Position;
-                float currentSqMag = math.distancesq(currentPos, shipPos);
-                if (newSqMag < currentSqMag)
-                {
-                    s.closestNodes.Set(nodes[i], j);
-                    break;
-                }
-            }
-        }
-        s.nodeOffset = shipPos - s.AverageNodePos(transformData);
-    }
-}
-
-[BurstCompile]
 public partial struct UpdatePlayerShipJob: IJobEntity
 {
     [ReadOnly] public TimeData timeData; 
-    void Execute(ref Ship ship, ref NextTransform nt, ref Docked docked, in Player p)
+    void Execute(ref Ship ship, ref NextTransform nt, ref Docked docked, ref Accelerating a, in Player p)
     {
         float dt = timeData.DeltaTime;
         float rspeed = ship.rotationSpeed * dt;
@@ -76,11 +28,11 @@ public partial struct UpdatePlayerShipJob: IJobEntity
             }
             if (Globals.sharedInputState.Data.ForwardThrustKeyDown)
             {
-                ship.AddThrust(fspeed * nt.facing);
+                a.accel += (fspeed * nt.facing);
             }
             if (Globals.sharedInputState.Data.ReverseThrustKeyDown)
             {
-                ship.AddThrust(-fspeed * nt.facing);
+                a.accel += (-fspeed * nt.facing);
             }
 
             ship.shootingPrimary = Globals.sharedInputState.Data.PrimaryWeaponKeyDown;
@@ -90,7 +42,7 @@ public partial struct UpdatePlayerShipJob: IJobEntity
         {
             if (docked.dockedAt == Entity.Null)
             {
-                ship.AddThrust(fspeed * 2.0f * nt.facing);
+                a.accel += (fspeed * 2.0f * nt.facing);
             }
             else
             {
@@ -125,7 +77,7 @@ public partial struct UpdateShipsWithStationsJob: IJobEntity
     [NativeDisableContainerSafetyRestriction] [ReadOnly] public ComponentLookup<NextTransform> nextTransformData;
     [ReadOnly] public TimeData timeData;
 
-    void Execute(ref Ship ship, ref NextTransform nt, ref Docked docked)
+    void Execute(ref Ship ship, ref NextTransform nt, ref Docked docked, ref Accelerating a)
     {
         float3 shipPos = nt.nextPos;
         float dt = timeData.DeltaTime;
@@ -149,12 +101,12 @@ public partial struct UpdateShipsWithStationsJob: IJobEntity
                         float totalCollisionSize = size + ship.size;
                         if (distSq < totalCollisionSize * totalCollisionSize)
                         {
-                            float3? intersection = Utils.LineSegmentCircleIntersection(stationPos, totalCollisionSize, ship.prevPos, shipPos);
+                            float3? intersection = Utils.LineSegmentCircleIntersection(stationPos, totalCollisionSize, a.prevPos, shipPos);
                             if (intersection != null)
                             {
                                 float bounciness = sm.GetParam(1);
                                 nt.nextPos = intersection.Value;
-                                ship.HandleCollisionAt(intersection.Value, math.normalize(intersection.Value - stationPos), bounciness);
+                                a.HandleCollisionAt(intersection.Value, math.normalize(intersection.Value - stationPos), bounciness);
                             }
                         }
                         break;
@@ -169,7 +121,7 @@ public partial struct UpdateShipsWithStationsJob: IJobEntity
                         //So that cancels with the fObj.dimension - 1, removing the - 1
                         //However #2, dir.sqrMagnitude is cheaper, but will require bringing back the - 1
                         float denom = math.pow(distSq, (order - 1f));
-                        ship.accel += (pullStrength / denom) * dir + (perpendicularStrength / denom) * dir2;
+                        a.accel += (pullStrength / denom) * dir + (perpendicularStrength / denom) * dir2;
                         break;
                     case StationModuleType.Dock:
                         float maxDockingSpeed = sm.GetParam(0);
@@ -179,7 +131,7 @@ public partial struct UpdateShipsWithStationsJob: IJobEntity
                         float undockThrust = sm.GetParam(2);
                         float totalUndockSize = station.size + ship.size + undockDistance;
 
-                        if (docked.dockedAt == Entity.Null && math.distancesq(ship.vel, float3.zero) / dt2 < sqrMaxDockingSpeed)
+                        if (docked.dockedAt == Entity.Null && math.distancesq(a.vel, float3.zero) / dt2 < sqrMaxDockingSpeed)
                         {
                             if (distSq < totalUndockSize * totalUndockSize)
                             {
@@ -187,9 +139,9 @@ public partial struct UpdateShipsWithStationsJob: IJobEntity
                                 docked.dockedAt = stationEntity;
                                 docked.initialPos = shipPos;
                                 docked.initialFacing = nextTransformData[stationEntity].facing;
-                                ship.prevPos = shipPos;
-                                ship.accel = float3.zero;
-                                ship.vel = float3.zero;
+                                a.prevPos = shipPos;
+                                a.accel = float3.zero;
+                                a.vel = float3.zero;
                                 nt.nextPos = shipPos;
                                 nt.facing = normalizedDir;
                             }
@@ -201,7 +153,7 @@ public partial struct UpdateShipsWithStationsJob: IJobEntity
                                 nt.facing = normalizedDir;
                                 if (distSq < totalUndockSize * totalUndockSize)
                                 {
-                                    ship.AddThrust(nt.facing * undockThrust);
+                                    a.accel += (nt.facing * undockThrust);
                                 }
                                 else
                                 {
@@ -212,7 +164,7 @@ public partial struct UpdateShipsWithStationsJob: IJobEntity
                             else
                             {
 
-                                ship.prevPos = nt.nextPos;
+                                a.prevPos = nt.nextPos;
                             }
                         }
                         break;
@@ -221,26 +173,6 @@ public partial struct UpdateShipsWithStationsJob: IJobEntity
                 }
             }
         }
-    }
-}
-
-[BurstCompile]
-public partial struct IntegrateShipsJob: IJobEntity
-{
-    [ReadOnly] public TimeData timeData;
-    [ReadOnly] public ComponentLookup<LocalToWorld> transformData;
-    void Execute(ref Ship ship, ref NextTransform nt, in Docked docked)
-    {
-        if(docked.dockedAt != Entity.Null && !docked.isUndocking) { return; }
-        if(ship.PreparingHyperspace()) { return; }
-
-        float dt = timeData.DeltaTime;
-        float3 shipPos = nt.nextPos;
-        float3 current = shipPos + (ship.GridPosition(transformData) - shipPos) * dt;
-        nt.nextPos = 2 * current - ship.prevPos + ship.accel * (dt * dt);
-        ship.accel = float3.zero;
-        ship.prevPos = current;
-        ship.vel = nt.nextPos - current;
     }
 }
 
@@ -263,11 +195,13 @@ public partial struct ShootWeaponsJob: IJobEntity
             switch (current.type)
             {
                 case WeaponType.StraightRocket:
-                    Entity newRocket = ecb.Instantiate(entityInQueryIndex, Globals.sharedPrototypes.Data.nodePrototype);
-                    float scale = 0.5f;
-                    float4x4 localToWorldData = math.mul(float4x4.Translate(newPos), float4x4.Scale(scale));
-                    ecb.AddComponent(entityInQueryIndex, newRocket, new LocalToWorld { Value = localToWorldData });
+                    Entity newRocket = ecb.Instantiate(entityInQueryIndex, Globals.sharedPrototypes.Data.rocket1Prototype);
+                    float4x4 scale = float4x4.Scale(0.1f);
+                    float4x4 rotation = float4x4.RotateZ(math.radians(270));
+                    float4x4 initialTransform = math.mul(rotation, scale);
+                    ecb.AddComponent(entityInQueryIndex, newRocket, new LocalToWorld { Value = initialTransform });
                     ecb.AddComponent(entityInQueryIndex, newRocket, new Accelerating { prevPos = newPos, accel = float3.zero, nodeOffset = float3.zero, vel = float3.zero });
+                    ecb.AddComponent(entityInQueryIndex, newRocket, new InitialTransform { Value = initialTransform });
                     ecb.AddComponent(entityInQueryIndex, newRocket, new NextTransform { nextPos = newPos, scale = 1.0f, facing = nt.facing });
                     ecb.AddComponent(entityInQueryIndex, newRocket, new ConstantThrust { thrust = nt.facing * 10.1f });
                     ecb.AddComponent(entityInQueryIndex, newRocket, new DestroyOnLevelUnload());
@@ -324,10 +258,6 @@ public partial struct ShipSystem : ISystem
         systemState.Dependency = new ShootWeaponsJob { timeData = SystemAPI.Time, ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new UpdateShipsWithStationsJob { stationEntities = stationEntities, stationData = stationData, transformData = transformData, timeData = SystemAPI.Time, nextTransformData = nextTransformData }.ScheduleParallel(systemState.Dependency);
-        
-        systemState.Dependency = new IntegrateShipsJob { timeData = SystemAPI.Time, transformData = transformData }.ScheduleParallel(systemState.Dependency);
-
-        systemState.Dependency = new FindClosestNodesJob { transformData = transformData, nodes = nodes, nodeData = nodeData }.ScheduleParallel(systemState.Dependency);
     }
 }
 

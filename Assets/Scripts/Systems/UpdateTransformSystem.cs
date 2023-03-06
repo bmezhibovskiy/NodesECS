@@ -1,3 +1,4 @@
+using System.Net.Sockets;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Core;
@@ -68,8 +69,24 @@ public partial struct IntegrateAcceleratingJob : IJobEntity
 {
     [ReadOnly] public TimeData timeData;
     [ReadOnly] public ComponentLookup<LocalToWorld> transformData;
-    void Execute(ref Accelerating a, ref NextTransform nt)
+    [ReadOnly] public ComponentLookup<Docked> dockedData;
+    [ReadOnly] public ComponentLookup<Ship> shipData;
+
+    void Execute(ref Accelerating a, ref NextTransform nt, in Entity e)
     {
+        //TODO: Refactor this to be in a different system, and maybe give Accelerating a locked bool.
+        if (dockedData.HasComponent(e))
+        {
+            Docked docked = dockedData[e];
+            if (docked.dockedAt != Entity.Null && !docked.isUndocking) { return; }
+        }
+
+        if (shipData.HasComponent(e))
+        {
+            Ship ship = shipData[e];
+            if (ship.PreparingHyperspace()) { return; }
+        }
+        
         float dt = timeData.DeltaTime;
         float3 shipPos = nt.nextPos;
         float3 current = shipPos + (a.GridPosition(transformData) - shipPos) * dt;
@@ -83,13 +100,19 @@ public partial struct IntegrateAcceleratingJob : IJobEntity
 [BurstCompile]
 public partial struct UpdateTransformsJob : IJobEntity
 {
-    void Execute(ref LocalToWorld t, in NextTransform nt)
+    [ReadOnly] public ComponentLookup<InitialTransform> initialTransformData;
+    void Execute(ref LocalToWorld t, in NextTransform nt, in Entity e)
     {
+        float4x4 initial = float4x4.identity;
+        if(initialTransformData.HasComponent(e))
+        {
+            initial = initialTransformData[e].Value;
+        }
         float4x4 translation = float4x4.Translate(nt.nextPos);
         float angle = math.radians(Vector3.SignedAngle(Vector3.right, nt.facing, Vector3.forward));
         float4x4 rotation = float4x4.RotateZ(angle);
         float4x4 scale = float4x4.Scale(nt.scale);
-        t.Value = math.mul(translation, math.mul(rotation, scale));
+        t.Value = math.mul(translation, math.mul(rotation, math.mul(scale, initial)));
     }
 }
 
@@ -116,7 +139,10 @@ public partial struct UpdateChildTransformJob : IJobEntity
 public partial struct UpdateTransformSystem : ISystem
 {
     [ReadOnly] private ComponentLookup<LocalToWorld> transformData;
+    [ReadOnly] private ComponentLookup<InitialTransform> initialTransformData;
     [ReadOnly] private ComponentLookup<GridNode> nodeData;
+    [ReadOnly] public ComponentLookup<Docked> dockedData;
+    [ReadOnly] public ComponentLookup<Ship> shipData;
 
     private EntityQuery nodesQuery;
 
@@ -124,7 +150,10 @@ public partial struct UpdateTransformSystem : ISystem
     public void OnCreate(ref SystemState systemState)
     {
         transformData = SystemAPI.GetComponentLookup<LocalToWorld>();
+        initialTransformData = SystemAPI.GetComponentLookup<InitialTransform>();
         nodeData = SystemAPI.GetComponentLookup<GridNode>();
+        dockedData = SystemAPI.GetComponentLookup<Docked>();
+        shipData = SystemAPI.GetComponentLookup<Ship>();
         nodesQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<GridNode, LocalToWorld>().Build(ref systemState);
     }
 
@@ -138,17 +167,20 @@ public partial struct UpdateTransformSystem : ISystem
     public void OnUpdate(ref SystemState systemState)
     {
         transformData.Update(ref systemState);
+        initialTransformData.Update(ref systemState);
         nodeData.Update(ref systemState);
+        dockedData.Update(ref systemState);
+        shipData.Update(ref systemState);
 
         systemState.Dependency = new PopulateParentTransformJob { transformData = transformData }.ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new UpdateChildTransformJob().ScheduleParallel(systemState.Dependency);
 
-        systemState.Dependency = new UpdateTransformsJob().ScheduleParallel(systemState.Dependency);
+        systemState.Dependency = new UpdateTransformsJob { initialTransformData = initialTransformData }.ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new UpdateConstantThrustJob().ScheduleParallel(systemState.Dependency);
 
-        systemState.Dependency = new IntegrateAcceleratingJob { timeData = SystemAPI.Time, transformData = transformData }.ScheduleParallel(systemState.Dependency);
+        systemState.Dependency = new IntegrateAcceleratingJob { timeData = SystemAPI.Time, transformData = transformData, dockedData = dockedData, shipData = shipData }.ScheduleParallel(systemState.Dependency);
 
         NativeArray<Entity> nodes = nodesQuery.ToEntityArray(systemState.WorldUpdateAllocator);
 

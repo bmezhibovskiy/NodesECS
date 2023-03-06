@@ -93,11 +93,6 @@ public struct Ship : IComponentData
 {
     public float size;
 
-    public ClosestNodes closestNodes;
-    public float3 nodeOffset;
-    public float3 prevPos;
-    public float3 accel;
-    public float3 vel;//derived from translation and prevPos
     public float thrust;
     public float rotationSpeed;
 
@@ -111,54 +106,6 @@ public struct Ship : IComponentData
     public bool shootingPrimary;
     public bool shootingSecondary;
     public Entity target;
-
-    public void AddThrust(float3 thrust)
-    {
-        accel += thrust;
-    }
-
-    public float3 AverageNodePos(ComponentLookup<LocalToWorld> transformData)
-    {
-        float3 avgPos = float3.zero;
-        int numClosest = 0;
-        for (int i = 0; i < ClosestNodes.numClosestNodes; ++i)
-        {
-            Entity closest = closestNodes.Get(i);
-            if (transformData.HasComponent(closest))
-            {
-                avgPos += transformData[closest].Position;
-                ++numClosest;
-            }
-        }
-        if (numClosest > 0)
-        {
-            return avgPos / (float)numClosest;
-        }
-        return prevPos + vel;
-    }
-
-    public float3 GridPosition(ComponentLookup<LocalToWorld> transformData)
-    {
-        return AverageNodePos(transformData) + nodeOffset;
-    }
-    public void HandleCollisionAt(float3 collisionPos, float3 normal, float bounciness = 0.5f)
-    {
-        if (math.lengthsq(vel) < 0.00002f)
-        {
-            //Velocity too small, set to 0 instead of bouncing forever, which can cause instability
-            prevPos = collisionPos;
-            return;
-        }
-
-        //Reflect vel about normal
-        vel = (vel - 2f * Vector3.Dot(vel, normal) * normal) * bounciness;
-
-        //Would need time independent accel because otherwise we would need next frame's deltaTime to get the correct bounce
-        //Verlet integration doesn't seem good for velocity based forces, since velocity is derived.
-        //timeIndependentAccel += (-2 * normal * Vector3.Dot(vel, normal)) * bounciness;
-
-        prevPos = collisionPos - vel;
-    }
 
     public void StartHyperspace(int target, int nodesRequired)
     {
