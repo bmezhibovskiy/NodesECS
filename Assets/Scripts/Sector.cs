@@ -173,19 +173,7 @@ public class Sector : MonoBehaviour
 
     private Entity AddNode(float3 pos, bool isBorder)
     {
-        Entity e = em.Instantiate(Globals.sharedPrototypes.Data.nodePrototype);
-
-        float scale = Globals.sharedLevelInfo.Data.nodeSize;
-        float4x4 localToWorldData = math.mul(float4x4.Translate(pos), float4x4.Scale(scale));
-
-        em.AddComponentData(e, new GridNode { velocity = float3.zero, isDead = false, isBorder = isBorder });
-        em.AddComponentData(e, new LocalToWorld { Value = localToWorldData });
-        if(isBorder)
-        {
-            em.AddComponentData(e, new HDRPMaterialPropertyBaseColor { Value = new float4(1, 0, 0, 1)});
-        }
-        em.AddComponentData(e, new DestroyOnLevelUnload());
-        return e;
+        return Globals.sharedEntityFactory.Data.CreateNodeNow(em, pos, isBorder);
     }
 
     private void AddStation(string name, string type, float3 pos, float size, int factionIndex, StationModuleInfo[] moduleInfos)
@@ -270,14 +258,11 @@ public class Sector : MonoBehaviour
         {
             em.AddComponentData(e, new Player { });
         }
-        ThrustHaver th = ThrustHaver.Empty;
-        th.numThrusters = 2;
-        th.thrustPos1 = new float3(-0.57f, 0.3f, 0);
-        th.thrustPos2 = new float3(-0.57f, -0.3f, 0);
-        th.scale = float4x4.Scale(new float3(7, 7, 16));
-        th.rotation = math.mul(float4x4.RotateX(math.radians(180)), float4x4.RotateY(math.radians(90)));
 
-        em.AddComponentData(e, th);
+        float4x4 scale = float4x4.Scale(new float3(7, 7, 16));
+        float4x4 rotation = math.mul(float4x4.RotateX(math.radians(180)), float4x4.RotateY(math.radians(90)));
+        em.AddComponentData(e, ThrustHaver.Two(new float3(-0.57f, 0.3f, 0), new float3(-0.57f, -0.3f, 0), rotation, scale, false));
+
         em.AddComponentData(e, new DestroyOnLevelUnload());
 
         lightObjects[e] = new List<GameObject>();

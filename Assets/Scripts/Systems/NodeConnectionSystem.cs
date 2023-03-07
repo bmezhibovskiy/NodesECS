@@ -24,16 +24,7 @@ public partial struct UpdateConnectionsJob : IJobEntity
 
         if (math.distancesq(posA, posB) > maxDist * maxDist)
         {
-            float3 newPos = 0.5f * (posA + posB);
-
-            Entity newNode = ecb.Instantiate(entityInQueryIndex, Globals.sharedPrototypes.Data.nodePrototype);
-
-            float scale = Globals.sharedLevelInfo.Data.nodeSize;
-            float4x4 localToWorldData = math.mul(float4x4.Translate(newPos), float4x4.Scale(scale));
-            ecb.AddComponent(entityInQueryIndex, newNode, new LocalToWorld { Value = localToWorldData });
-            ecb.AddComponent(entityInQueryIndex, newNode, new GridNode { velocity = float3.zero, isDead = false, isBorder = false });
-            ecb.AddComponent(entityInQueryIndex, newNode, new NeedsConnection { connection = e });
-            ecb.AddComponent(entityInQueryIndex, newNode, new DestroyOnLevelUnload());
+            Globals.sharedEntityFactory.Data.CreateNodeAsync(entityInQueryIndex, ecb, 0.5f * (posA + posB), e);
 
             if (nodeData[nc.a].isBorder)
             {

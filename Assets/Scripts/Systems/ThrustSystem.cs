@@ -11,6 +11,40 @@ using UnityEngine;
 public struct ThrustHaver : IComponentData
 {
     public readonly static ThrustHaver Empty = new ThrustHaver { thrustEntity1 = Entity.Null, thrustEntity2 = Entity.Null, thrustEntity3 = Entity.Null, numThrusters = 0, shouldShowThrust = false };
+    public static ThrustHaver One(float3 pos, float4x4 rotation, float4x4 scale, bool onByDefault)
+    {
+        ThrustHaver th = Empty;
+        th.numThrusters = 1;
+        th.thrustPos1 = pos;
+        th.shouldShowThrust = onByDefault;
+        th.scale = scale;
+        th.rotation = rotation;
+        return th;
+    }
+    public static ThrustHaver Two(float3 pos1, float3 pos2, float4x4 rotation, float4x4 scale, bool onByDefault)
+    {
+        ThrustHaver th = Empty;
+        th.numThrusters = 2;
+        th.thrustPos1 = pos1;
+        th.thrustPos2 = pos2;
+        th.shouldShowThrust = onByDefault;
+        th.scale = scale;
+        th.rotation = rotation;
+        return th;
+    }
+
+    public static ThrustHaver Three(float3 pos1, float3 pos2, float pos3, float4x4 rotation, float4x4 scale, bool onByDefault)
+    {
+        ThrustHaver th = Empty;
+        th.numThrusters = 3;
+        th.thrustPos1 = pos1;
+        th.thrustPos2 = pos2;
+        th.thrustPos3 = pos3;
+        th.shouldShowThrust = onByDefault;
+        th.scale = scale;
+        th.rotation = rotation;
+        return th;
+    }
     public Entity thrustEntity1;
     public Entity thrustEntity2;
     public Entity thrustEntity3;
@@ -105,17 +139,7 @@ public partial struct CreateThrustJob : IJobEntity
 
         for (int i = 0; i < th.numThrusters; ++i)
         {
-            Entity newThrust = ecb.Instantiate(entityInQueryIndex, Globals.sharedPrototypes.Data.thrust1Prototype);
-            ecb.AddComponent(entityInQueryIndex, newThrust, new Parent { Value = e });
-
-            float4x4 anchor = float4x4.Translate(th.GetPos(i));
-            float4x4 transform = math.mul(anchor, math.mul(th.rotation, th.scale));
-            ecb.AddComponent(entityInQueryIndex, newThrust, new LocalToWorld { Value = math.mul(ltw.Value, transform) });
-            ecb.AddComponent(entityInQueryIndex, newThrust, new RelativeTransform { Value = transform, lastParentValue = ltw.Value });
-
-            ecb.AddComponent(entityInQueryIndex, newThrust, new DestroyOnLevelUnload());
-
-            ecb.AddComponent(entityInQueryIndex, newThrust, new NeedsAssignThrustEntity { parentEntity = e, thrusterNumber = i });
+            Entity newThrust = Globals.sharedEntityFactory.Data.CreateThrust1Async(entityInQueryIndex, ecb, e, th, i, ltw.Value);
 
             //Will get replaced with the real Entity in another job. This will serve to be different than Entity.Null
             th.Set(i, newThrust);

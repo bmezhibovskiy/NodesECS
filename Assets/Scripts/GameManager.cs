@@ -11,10 +11,10 @@ using Unity.Assertions;
 public static class Globals
 {
     public readonly static SharedStatic<InputState> sharedInputState = SharedStatic<InputState>.GetOrCreate<InputStateKey>();
-    public readonly static SharedStatic<EntityPrototypes> sharedPrototypes = SharedStatic<EntityPrototypes>.GetOrCreate<EntityPrototypesKey>();
+    public readonly static SharedStatic<EntityFactory> sharedEntityFactory = SharedStatic<EntityFactory>.GetOrCreate<EntityFactoryKey>();
     public readonly static SharedStatic<LevelInfo> sharedLevelInfo = SharedStatic<LevelInfo>.GetOrCreate<LevelInfoKey>();
     private class InputStateKey { }
-    private class EntityPrototypesKey { }
+    private class EntityFactoryKey { }
     private class LevelInfoKey { }
 
     static Globals()
@@ -48,13 +48,6 @@ public struct InputState
         PrimaryWeaponKeyDown = false;
         SecondaryWeaponKeyDown = false;
     }
-}
-
-public struct EntityPrototypes
-{
-    public Entity nodePrototype;
-    public Entity rocket1Prototype;
-    public Entity thrust1Prototype;
 }
 
 public struct LevelInfo
@@ -134,28 +127,16 @@ public class GameManager : MonoBehaviour
     private void SetUpPrototypes()
     {
         EntityManager em = World.DefaultGameObjectInjectionWorld.EntityManager;
-        EntityArchetype ea = em.CreateArchetype();
 
-        RenderMeshDescription rmd = new RenderMeshDescription(ShadowCastingMode.Off, false);
-        MaterialMeshInfo mmi = MaterialMeshInfo.FromRenderMeshArrayIndices(0, 0);
-
-        Entity nodePrototype = em.CreateEntity(ea);
-        RenderMeshArray renderMeshArray = new RenderMeshArray(new Material[] { nodeMaterial }, new Mesh[] { nodeMesh });
-        RenderMeshUtility.AddComponents(nodePrototype, em, rmd, renderMeshArray, mmi);
-
-        Globals.sharedPrototypes.Data.nodePrototype = nodePrototype;
-
-        Entity rocket1Prototype = em.CreateEntity(ea);
-        RenderMeshArray renderMeshArray2 = new RenderMeshArray(new Material[] { rocketMaterial }, new Mesh[] { rocketMesh });
-        RenderMeshUtility.AddComponents(rocket1Prototype, em, rmd, renderMeshArray2, mmi);
-
-        Globals.sharedPrototypes.Data.rocket1Prototype = rocket1Prototype;
-
-        Entity thrust1Prototype = em.CreateEntity(ea);
-        RenderMeshArray renderMeshArray3 = new RenderMeshArray(new Material[] { thrustMaterial }, new Mesh[] { thrustMesh });
-        RenderMeshUtility.AddComponents(thrust1Prototype, em, rmd, renderMeshArray3, mmi);
-
-        Globals.sharedPrototypes.Data.thrust1Prototype = thrust1Prototype;
+        Dictionary<string, Mesh> meshes = new Dictionary<string, Mesh>();
+        meshes["node"] = nodeMesh;
+        meshes["rocket1"] = rocketMesh;
+        meshes["thrust1"] = thrustMesh;
+        Dictionary<string, Material> materials = new Dictionary<string, Material>();
+        materials["node"] = nodeMaterial;
+        materials["rocket1"] = rocketMaterial;
+        materials["thrust1"] = thrustMaterial;
+        Globals.sharedEntityFactory.Data.SetUpPrototypes(em, meshes, materials);
     }
 
     // Update is called once per frame
