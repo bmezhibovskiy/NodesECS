@@ -6,8 +6,36 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
 
+public struct NeedsDestroy: IComponentData
+{
+    public double destroyTime;
+}
+
 [BurstCompile]
-public partial struct DestroyAllEntitiesJob: IJobEntity
+public partial struct DestroyNeededEntitiesJob : IJobEntity
+{
+    [ReadOnly] public TimeData timeData;
+    [ReadOnly] public NativeArray<Entity> entitiesThatHaveParents;
+    [ReadOnly] public ComponentLookup<Parent> parentData;
+    public EntityCommandBuffer.ParallelWriter ecb;
+    void Execute(in NeedsDestroy nd, in Entity e, [EntityIndexInQuery] int entityInQueryIndex)
+    {
+        if (timeData.ElapsedTime < nd.destroyTime) { return; }
+
+        for(int i = 0; i < entitiesThatHaveParents.Length; ++i)
+        {
+            Entity child = entitiesThatHaveParents[i];
+            if (parentData[child].Value == e)
+            {
+                ecb.DestroyEntity(entityInQueryIndex, child);
+            }
+        }
+        ecb.DestroyEntity(entityInQueryIndex, e);
+    }
+}
+
+[BurstCompile]
+public partial struct DestroyAllEntitiesJob : IJobEntity
 {
     public EntityCommandBuffer.ParallelWriter ecb;
     void Execute(in DestroyOnLevelUnload dolu, in Entity e, [EntityIndexInQuery] int entityInQueryIndex)
@@ -19,10 +47,14 @@ public partial struct DestroyAllEntitiesJob: IJobEntity
 [BurstCompile]
 public partial struct CleanupSystem : ISystem
 {
+    [ReadOnly] private ComponentLookup<Parent> parentData;
+    private EntityQuery childEntityQuery;
+
     [BurstCompile]
     public void OnCreate(ref SystemState systemState)
     {
-
+        parentData = SystemAPI.GetComponentLookup<Parent>();
+        childEntityQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<Parent>().Build(ref systemState);
     }
     [BurstCompile]
     public void OnDestroy(ref SystemState systemState)
@@ -32,9 +64,16 @@ public partial struct CleanupSystem : ISystem
     [BurstCompile]
     public void OnUpdate(ref SystemState systemState)
     {
-        if(!Globals.sharedLevelInfo.Data.needsDestroy) { return; }
+        parentData.Update(ref systemState);
 
         BeginSimulationEntityCommandBufferSystem.Singleton ecbSystem = SystemAPI.GetSingleton<BeginSimulationEntityCommandBufferSystem.Singleton>();
+
+        NativeArray<Entity> childEntities = childEntityQuery.ToEntityArray(systemState.WorldUpdateAllocator);
+
+        systemState.Dependency = new DestroyNeededEntitiesJob { timeData = SystemAPI.Time, entitiesThatHaveParents = childEntities, parentData = parentData, ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
+
+        if (!Globals.sharedLevelInfo.Data.needsDestroy) { return; }
+
         systemState.Dependency = new DestroyAllEntitiesJob { ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
     }
 }

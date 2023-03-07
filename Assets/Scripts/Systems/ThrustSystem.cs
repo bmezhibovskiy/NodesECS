@@ -86,7 +86,9 @@ public partial struct DestroyThrustJob : IJobEntity
         if(th.thrustEntity1 == Entity.Null) { return; }
         for (int i = 0; i < th.numThrusters; ++i)
         {
-            ecb.DestroyEntity(entityInQueryIndex, th.Get(i));
+            Entity toDestroy = th.Get(i);
+            if ( toDestroy.Index < 0 ) { continue; }
+            ecb.DestroyEntity(entityInQueryIndex, toDestroy);
             th.Set(i, Entity.Null);
         }
     }
@@ -103,7 +105,6 @@ public partial struct CreateThrustJob : IJobEntity
 
         for (int i = 0; i < th.numThrusters; ++i)
         {
-
             Entity newThrust = ecb.Instantiate(entityInQueryIndex, Globals.sharedPrototypes.Data.thrust1Prototype);
             ecb.AddComponent(entityInQueryIndex, newThrust, new Parent { Value = e });
 

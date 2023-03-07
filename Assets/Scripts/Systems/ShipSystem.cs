@@ -232,6 +232,8 @@ public partial struct ShootWeaponsJob: IJobEntity
                     th.rotation = float4x4.RotateX(math.radians(270));
                     ecb.AddComponent(entityInQueryIndex, newRocket, th);
 
+                    ecb.AddComponent(entityInQueryIndex, newRocket, new NeedsDestroy { destroyTime = timeData.ElapsedTime + 1.5 });
+
                     ecb.AddComponent(entityInQueryIndex, newRocket, new DestroyOnLevelUnload());
                     break;
                 default:
