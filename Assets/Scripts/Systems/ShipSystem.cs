@@ -11,7 +11,7 @@ using UnityEngine;
 public partial struct UpdatePlayerShipJob: IJobEntity
 {
     [ReadOnly] public TimeData timeData; 
-    void Execute(ref Ship ship, ref NextTransform nt, ref Docked docked, ref Accelerating a, in Player p)
+    void Execute(ref Ship ship, ref NextTransform nt, ref Docked docked, ref Accelerating a, ref ThrustHaver th, in Player p)
     {
         float dt = timeData.DeltaTime;
         float rspeed = ship.rotationSpeed * dt;
@@ -65,6 +65,8 @@ public partial struct UpdatePlayerShipJob: IJobEntity
         {
             ship.lightsOn = !ship.lightsOn;
         }
+
+        th.shouldShowThrust = math.lengthsq(a.accel) > 0;
     }
 }
 
@@ -204,6 +206,15 @@ public partial struct ShootWeaponsJob: IJobEntity
                     ecb.AddComponent(entityInQueryIndex, newRocket, new InitialTransform { Value = initialTransform });
                     ecb.AddComponent(entityInQueryIndex, newRocket, new NextTransform { nextPos = newPos, scale = 1.0f, facing = nt.facing });
                     ecb.AddComponent(entityInQueryIndex, newRocket, new ConstantThrust { thrust = nt.facing * 10.1f });
+
+                    ThrustHaver th = ThrustHaver.Empty;
+                    th.numThrusters = 1;
+                    th.thrustPos1 = new float3(0, -5.0f, 0);
+                    th.shouldShowThrust = true;
+                    th.scale = float4x4.Scale(new float3(80, 80, 240));
+                    th.rotation = float4x4.RotateX(math.radians(270));
+                    ecb.AddComponent(entityInQueryIndex, newRocket, th);
+
                     ecb.AddComponent(entityInQueryIndex, newRocket, new DestroyOnLevelUnload());
                     break;
                 default:

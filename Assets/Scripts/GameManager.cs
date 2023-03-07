@@ -54,6 +54,7 @@ public struct EntityPrototypes
 {
     public Entity nodePrototype;
     public Entity rocket1Prototype;
+    public Entity thrust1Prototype;
 }
 
 public struct LevelInfo
@@ -87,6 +88,12 @@ public class GameManager : MonoBehaviour
 
     [SerializeField]
     Material rocketMaterial;
+
+    [SerializeField]
+    Mesh thrustMesh;
+
+    [SerializeField]
+    Material thrustMaterial;
 
     ShipInfos shipInfos;
     StationTypeInfos stationTypeInfos;
@@ -128,20 +135,27 @@ public class GameManager : MonoBehaviour
     {
         EntityManager em = World.DefaultGameObjectInjectionWorld.EntityManager;
         EntityArchetype ea = em.CreateArchetype();
-        Entity nodePrototype = em.CreateEntity(ea);
 
         RenderMeshDescription rmd = new RenderMeshDescription(ShadowCastingMode.Off, false);
+        MaterialMeshInfo mmi = MaterialMeshInfo.FromRenderMeshArrayIndices(0, 0);
+
+        Entity nodePrototype = em.CreateEntity(ea);
         RenderMeshArray renderMeshArray = new RenderMeshArray(new Material[] { nodeMaterial }, new Mesh[] { nodeMesh });
-        RenderMeshUtility.AddComponents(nodePrototype, em, rmd, renderMeshArray, MaterialMeshInfo.FromRenderMeshArrayIndices(0, 0));
+        RenderMeshUtility.AddComponents(nodePrototype, em, rmd, renderMeshArray, mmi);
 
         Globals.sharedPrototypes.Data.nodePrototype = nodePrototype;
 
         Entity rocket1Prototype = em.CreateEntity(ea);
         RenderMeshArray renderMeshArray2 = new RenderMeshArray(new Material[] { rocketMaterial }, new Mesh[] { rocketMesh });
-        RenderMeshUtility.AddComponents(rocket1Prototype, em, rmd, renderMeshArray2, MaterialMeshInfo.FromRenderMeshArrayIndices(0, 0));
+        RenderMeshUtility.AddComponents(rocket1Prototype, em, rmd, renderMeshArray2, mmi);
 
         Globals.sharedPrototypes.Data.rocket1Prototype = rocket1Prototype;
 
+        Entity thrust1Prototype = em.CreateEntity(ea);
+        RenderMeshArray renderMeshArray3 = new RenderMeshArray(new Material[] { thrustMaterial }, new Mesh[] { thrustMesh });
+        RenderMeshUtility.AddComponents(thrust1Prototype, em, rmd, renderMeshArray3, mmi);
+
+        Globals.sharedPrototypes.Data.thrust1Prototype = thrust1Prototype;
     }
 
     // Update is called once per frame

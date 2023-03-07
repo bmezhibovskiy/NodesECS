@@ -270,6 +270,14 @@ public class Sector : MonoBehaviour
         {
             em.AddComponentData(e, new Player { });
         }
+        ThrustHaver th = ThrustHaver.Empty;
+        th.numThrusters = 2;
+        th.thrustPos1 = new float3(-0.57f, 0.3f, 0);
+        th.thrustPos2 = new float3(-0.57f, -0.3f, 0);
+        th.scale = float4x4.Scale(new float3(7, 7, 16));
+        th.rotation = math.mul(float4x4.RotateX(math.radians(180)), float4x4.RotateY(math.radians(90)));
+
+        em.AddComponentData(e, th);
         em.AddComponentData(e, new DestroyOnLevelUnload());
 
         lightObjects[e] = new List<GameObject>();
