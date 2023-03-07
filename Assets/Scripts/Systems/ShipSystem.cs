@@ -66,7 +66,24 @@ public partial struct UpdatePlayerShipJob: IJobEntity
             ship.lightsOn = !ship.lightsOn;
         }
 
-        th.shouldShowThrust = math.lengthsq(a.accel) > 0;
+        //Blink the thrusters so that the new scale is applied
+        if (Globals.sharedInputState.Data.AfterburnerKeyDown && !ship.afterburnerOn)
+        {
+            ship.afterburnerOn = true;
+            th.scale = float4x4.Scale(new float3(9, 9, 32));
+            th.shouldShowThrust = false;
+        }
+        else if (!Globals.sharedInputState.Data.AfterburnerKeyDown && ship.afterburnerOn)
+        {
+            ship.afterburnerOn = false;
+            th.scale = float4x4.Scale(new float3(7, 7, 16));
+            th.shouldShowThrust = false;
+        }
+        else
+        {
+            th.shouldShowThrust = math.lengthsq(a.accel) > 0;
+        }
+        
     }
 }
 
@@ -201,7 +218,7 @@ public partial struct ShootWeaponsJob: IJobEntity
                     float4x4 scale = float4x4.Scale(0.1f);
                     float4x4 rotation = float4x4.RotateZ(math.radians(270));
                     float4x4 initialTransform = math.mul(rotation, scale);
-                    ecb.AddComponent(entityInQueryIndex, newRocket, new LocalToWorld { Value = initialTransform });
+                    ecb.AddComponent(entityInQueryIndex, newRocket, new LocalToWorld { Value = math.mul(float4x4.Translate(newPos), initialTransform) });
                     ecb.AddComponent(entityInQueryIndex, newRocket, new Accelerating { prevPos = newPos, accel = float3.zero, nodeOffset = float3.zero, vel = float3.zero });
                     ecb.AddComponent(entityInQueryIndex, newRocket, new InitialTransform { Value = initialTransform });
                     ecb.AddComponent(entityInQueryIndex, newRocket, new NextTransform { nextPos = newPos, scale = 1.0f, facing = nt.facing });

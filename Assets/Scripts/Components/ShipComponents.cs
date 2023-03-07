@@ -96,6 +96,8 @@ public struct Ship : IComponentData
     public float thrust;
     public float rotationSpeed;
 
+    public bool afterburnerOn;
+
     public int hyperspaceNodesRequired;
     public int hyperspaceNodesGathered;
     public int hyperspaceTarget;

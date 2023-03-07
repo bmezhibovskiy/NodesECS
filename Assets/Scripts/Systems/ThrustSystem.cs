@@ -109,7 +109,7 @@ public partial struct CreateThrustJob : IJobEntity
 
             float4x4 anchor = float4x4.Translate(th.GetPos(i));
             float4x4 transform = math.mul(anchor, math.mul(th.rotation, th.scale));
-            ecb.AddComponent(entityInQueryIndex, newThrust, new LocalToWorld { Value = transform });
+            ecb.AddComponent(entityInQueryIndex, newThrust, new LocalToWorld { Value = math.mul(ltw.Value, transform) });
             ecb.AddComponent(entityInQueryIndex, newThrust, new RelativeTransform { Value = transform, lastParentValue = ltw.Value });
 
             ecb.AddComponent(entityInQueryIndex, newThrust, new DestroyOnLevelUnload());
