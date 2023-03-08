@@ -10,18 +10,22 @@ using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-public struct EntityFactoryPrototypes
-{
-    public Entity nodePrototype;
-    public Entity rocket1Prototype;
-    public Entity thrust1Prototype;
-}
-
 public struct EntityFactory
 {
-    private EntityFactoryPrototypes prototypes;
+    public enum EntityType
+    {
+        Node, Rocket1, Thrust1
+    }
 
-    public void SetUpPrototypes(EntityManager em, Dictionary<string, Mesh> meshes, Dictionary<string, Material> materials)
+    private struct Prototypes
+    {
+        public Entity nodePrototype;
+        public Entity rocket1Prototype;
+        public Entity thrust1Prototype;
+    }
+    private Prototypes prototypes;
+
+    public void SetUpPrototypes(EntityManager em, Dictionary<EntityType, Mesh> meshes, Dictionary<EntityType, Material> materials)
     {
         EntityArchetype ea = em.CreateArchetype();
 
@@ -29,17 +33,17 @@ public struct EntityFactory
         MaterialMeshInfo mmi = MaterialMeshInfo.FromRenderMeshArrayIndices(0, 0);
 
         prototypes.nodePrototype = em.CreateEntity(ea);
-        RenderMeshArray renderMeshArray = new RenderMeshArray(new Material[] { materials["node"] }, new Mesh[] { meshes["node"] });
+        RenderMeshArray renderMeshArray = new RenderMeshArray(new Material[] { materials[EntityType.Node] }, new Mesh[] { meshes[EntityType.Node] });
         RenderMeshUtility.AddComponents(prototypes.nodePrototype, em, rmd, renderMeshArray, mmi);
 
 
         prototypes.rocket1Prototype = em.CreateEntity(ea);
-        RenderMeshArray renderMeshArray2 = new RenderMeshArray(new Material[] { materials["rocket1"] }, new Mesh[] { meshes["rocket1"] });
+        RenderMeshArray renderMeshArray2 = new RenderMeshArray(new Material[] { materials[EntityType.Rocket1] }, new Mesh[] { meshes[EntityType.Rocket1] });
         RenderMeshUtility.AddComponents(prototypes.rocket1Prototype, em, rmd, renderMeshArray2, mmi);
 
 
         prototypes.thrust1Prototype = em.CreateEntity(ea);
-        RenderMeshArray renderMeshArray3 = new RenderMeshArray(new Material[] { materials["thrust1"] }, new Mesh[] { meshes["thrust1"] });
+        RenderMeshArray renderMeshArray3 = new RenderMeshArray(new Material[] { materials[EntityType.Thrust1] }, new Mesh[] { meshes[EntityType.Thrust1] });
         RenderMeshUtility.AddComponents(prototypes.thrust1Prototype, em, rmd, renderMeshArray3, mmi);
     }
 

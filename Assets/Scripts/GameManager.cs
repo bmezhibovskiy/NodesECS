@@ -128,14 +128,14 @@ public class GameManager : MonoBehaviour
     {
         EntityManager em = World.DefaultGameObjectInjectionWorld.EntityManager;
 
-        Dictionary<string, Mesh> meshes = new Dictionary<string, Mesh>();
-        meshes["node"] = nodeMesh;
-        meshes["rocket1"] = rocketMesh;
-        meshes["thrust1"] = thrustMesh;
-        Dictionary<string, Material> materials = new Dictionary<string, Material>();
-        materials["node"] = nodeMaterial;
-        materials["rocket1"] = rocketMaterial;
-        materials["thrust1"] = thrustMaterial;
+        Dictionary<EntityFactory.EntityType, Mesh> meshes = new Dictionary<EntityFactory.EntityType, Mesh>();
+        meshes[EntityFactory.EntityType.Node] = nodeMesh;
+        meshes[EntityFactory.EntityType.Rocket1] = rocketMesh;
+        meshes[EntityFactory.EntityType.Thrust1] = thrustMesh;
+        Dictionary<EntityFactory.EntityType, Material> materials = new Dictionary<EntityFactory.EntityType, Material>();
+        materials[EntityFactory.EntityType.Node] = nodeMaterial;
+        materials[EntityFactory.EntityType.Rocket1] = rocketMaterial;
+        materials[EntityFactory.EntityType.Thrust1] = thrustMaterial;
         Globals.sharedEntityFactory.Data.SetUpPrototypes(em, meshes, materials);
     }
 
