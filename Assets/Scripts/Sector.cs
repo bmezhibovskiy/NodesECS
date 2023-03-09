@@ -261,7 +261,7 @@ public class Sector : MonoBehaviour
         }
         else
         {
-            em.AddComponentData(e, new AIData { type = AIData.Type.HoldPosition, targetPos = pos });
+            em.AddComponentData(e, new AIData { type = AIData.Type.Follow, target = playerEntity });
         }
 
         float4x4 scale = float4x4.Scale(new float3(7, 7, 16));
