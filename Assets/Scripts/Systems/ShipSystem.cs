@@ -66,22 +66,15 @@ public partial struct UpdatePlayerShipJob: IJobEntity
             ship.lightsOn = !ship.lightsOn;
         }
 
-        //Blink the thrusters so that the new scale is applied
         if (Globals.sharedInputState.Data.AfterburnerKeyDown && !ship.afterburnerOn)
         {
             ship.afterburnerOn = true;
             th.scale = float4x4.Scale(new float3(9, 9, 32));
-            th.shouldShowThrust = false;
         }
         else if (!Globals.sharedInputState.Data.AfterburnerKeyDown && ship.afterburnerOn)
         {
             ship.afterburnerOn = false;
             th.scale = float4x4.Scale(new float3(7, 7, 16));
-            th.shouldShowThrust = false;
-        }
-        else
-        {
-            th.shouldShowThrust = math.lengthsq(a.accel) > 0;
         }
         
     }

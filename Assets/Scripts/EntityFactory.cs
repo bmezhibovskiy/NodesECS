@@ -107,6 +107,7 @@ public struct EntityFactory
 
         ecb.AddComponent(sortKey, newThrust, new DestroyOnLevelUnload());
 
+        ecb.AddComponent(sortKey, newThrust, new Thrust { thrusterNumber = thrusterNumber });
         ecb.AddComponent(sortKey, newThrust, new NeedsAssignThrustEntity { parentEntity = parent, thrusterNumber = thrusterNumber });
         return newThrust;
     }

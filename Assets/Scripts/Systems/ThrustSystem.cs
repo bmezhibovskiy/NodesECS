@@ -8,6 +8,11 @@ using Unity.Transforms;
 using Unity.VisualScripting;
 using UnityEngine;
 
+public struct Thrust: IComponentData
+{
+    public int thrusterNumber;
+}
+
 public struct ThrustHaver : IComponentData
 {
     public readonly static ThrustHaver Empty = new ThrustHaver { thrustEntity1 = Entity.Null, thrustEntity2 = Entity.Null, thrustEntity3 = Entity.Null, numThrusters = 0, shouldShowThrust = false };
@@ -170,16 +175,42 @@ public partial struct AssignThrustEntityJob : IJobEntity
     }
 }
 
-    [BurstCompile]
+[BurstCompile]
+public partial struct UpdateThrustTransformJob : IJobEntity
+{
+    [ReadOnly] public ComponentLookup<ThrustHaver> thrustHaverData;
+    void Execute(ref RelativeTransform rt, in Thrust t, in Parent p)
+    {
+        ThrustHaver th = thrustHaverData[p.Value];
+
+        float4x4 anchor = float4x4.Translate(th.GetPos(t.thrusterNumber));
+        float4x4 transform = math.mul(anchor, math.mul(th.rotation, th.scale));
+
+        rt.Value = transform;
+    }
+}
+
+[BurstCompile]
+public partial struct UpdateThrustDisplayJob : IJobEntity
+{
+    void Execute(ref ThrustHaver th, in Accelerating ac)
+    {
+        th.shouldShowThrust = math.lengthsq(ac.accel) > 0;
+    }
+}
+
+[BurstCompile]
 public partial struct ThrustSystem : ISystem
 {
     [ReadOnly] private ComponentLookup<NeedsAssignThrustEntity> needsAssignThrustData;
+    [ReadOnly] private ComponentLookup<ThrustHaver> thrustHaverData;
     private EntityQuery assignThrustEntitiesQuery;
 
     [BurstCompile]
     public void OnCreate(ref SystemState systemState)
     {
         needsAssignThrustData = SystemAPI.GetComponentLookup<NeedsAssignThrustEntity>();
+        thrustHaverData = SystemAPI.GetComponentLookup<ThrustHaver>();
         assignThrustEntitiesQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<NeedsAssignThrustEntity>().Build(ref systemState);
     }
 
@@ -193,6 +224,7 @@ public partial struct ThrustSystem : ISystem
     public void OnUpdate(ref SystemState systemState)
     {
         needsAssignThrustData.Update(ref systemState);
+        thrustHaverData.Update(ref systemState);
         NativeArray<Entity> entitiesThatNeedAssignThrust = assignThrustEntitiesQuery.ToEntityArray(systemState.WorldUpdateAllocator);
 
         EndSimulationEntityCommandBufferSystem.Singleton ecbSystem = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>();
@@ -202,5 +234,9 @@ public partial struct ThrustSystem : ISystem
         systemState.Dependency = new DestroyThrustJob { ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new CreateThrustJob { ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
+
+        systemState.Dependency = new UpdateThrustTransformJob { thrustHaverData = thrustHaverData }.ScheduleParallel(systemState.Dependency);
+
+        systemState.Dependency = new UpdateThrustDisplayJob().ScheduleParallel(systemState.Dependency);
     }
 }

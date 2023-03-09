@@ -68,6 +68,7 @@ public class Sector : MonoBehaviour
             AddStation(si.name, si.type, si.position, si.size, si.factionIndex, si.moduleInfos);
         }
         this.playerEntity = AddShip("Scaphe", this.startPos, true);
+        AddShip("Scaphe", new float3(-4,1,0), false);
     }
 
     void Update()
@@ -257,6 +258,10 @@ public class Sector : MonoBehaviour
         if (isPlayer)
         {
             em.AddComponentData(e, new Player { });
+        }
+        else
+        {
+            em.AddComponentData(e, new AIData { type = AIData.Type.HoldPosition, targetPos = pos });
         }
 
         float4x4 scale = float4x4.Scale(new float3(7, 7, 16));
