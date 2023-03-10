@@ -116,24 +116,6 @@ public struct NeedsAssignThrustEntity: IComponentData
 }
 
 [BurstCompile]
-public partial struct DestroyThrustJob : IJobEntity
-{
-    public EntityCommandBuffer.ParallelWriter ecb;
-    void Execute(ref ThrustHaver th, [EntityIndexInQuery] int entityInQueryIndex)
-    {
-        if(th.shouldShowThrust) { return; }
-        if(th.thrustEntity1 == Entity.Null) { return; }
-        for (int i = 0; i < th.numThrusters; ++i)
-        {
-            Entity toDestroy = th.Get(i);
-            if ( toDestroy.Index < 0 ) { continue; }
-            ecb.DestroyEntity(entityInQueryIndex, toDestroy);
-            th.Set(i, Entity.Null);
-        }
-    }
-}
-
-[BurstCompile]
 public partial struct CreateThrustJob : IJobEntity
 {
     public EntityCommandBuffer.ParallelWriter ecb;
@@ -182,9 +164,10 @@ public partial struct UpdateThrustTransformJob : IJobEntity
     void Execute(ref RelativeTransform rt, in Thrust t, in Parent p)
     {
         ThrustHaver th = thrustHaverData[p.Value];
+        float4x4 scale = th.shouldShowThrust ? th.scale : float4x4.zero;
 
         float4x4 anchor = float4x4.Translate(th.GetPos(t.thrusterNumber));
-        float4x4 transform = math.mul(anchor, math.mul(th.rotation, th.scale));
+        float4x4 transform = math.mul(anchor, math.mul(th.rotation, scale));
 
         rt.Value = transform;
     }
@@ -230,8 +213,6 @@ public partial struct ThrustSystem : ISystem
         EndSimulationEntityCommandBufferSystem.Singleton ecbSystem = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>();
 
         systemState.Dependency = new AssignThrustEntityJob { entitiesThatNeedAssignThrust = entitiesThatNeedAssignThrust, needsAssignThrustData = needsAssignThrustData, ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
-
-        systemState.Dependency = new DestroyThrustJob { ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new CreateThrustJob { ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
 

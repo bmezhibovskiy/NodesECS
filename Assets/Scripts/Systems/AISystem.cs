@@ -14,7 +14,9 @@ public struct AIData: IComponentData
     public Type type;
     public float3 targetPos;
     public double thrustUntil;
+    public double waitUntil;
     public Entity target;
+    public int phase;
 
 }
 
@@ -53,6 +55,71 @@ public partial struct UpdateAIJob : IJobEntity
 
                 break;
             case AIData.Type.GoToPosition:
+                float3 dist = transformData[ai.target].Position - nt.nextPos;
+                float distMag = math.length(dist);
+                float angle = 0;
+                switch (ai.phase)
+                {
+                    case 0:
+                        targetFacing = dist/distMag;
+                        angle = Vector3.Angle(nt.facing, targetFacing);
+                        if (angle < 1)
+                        {
+                            ai.phase = 1;
+                        }
+                        break;
+                    case 1:
+                        targetFacing = dist / distMag;
+                        ac.accel += nt.facing * thrust;
+                        if(speed > 0.05f)
+                        {
+                            ai.phase = 2;
+                        }
+                        break;
+                    case 2:
+                        targetFacing = -vel / speed;
+                        angle = Vector3.Angle(nt.facing, targetFacing);
+                        if (angle < 1)
+                        {
+                            ai.phase = 3;
+                        }
+                        break;
+                    case 3:
+                        targetFacing = -vel / speed;
+                        if (distMag < 1)
+                        {
+                            ai.phase = 4;
+                        }
+                        if(distMag > 3)
+                        {
+                            ai.phase = 0;
+                        }
+                        break;
+                    case 4:
+                        targetFacing = -vel / speed;
+                        if (speed < 0.1f)
+                        {
+                            ai.phase = 5;
+                        }
+                        else
+                        {
+                            ac.accel += nt.facing * thrust;
+                        }
+                        break;
+                    case 5:
+                        ai.waitUntil = timeData.ElapsedTime + 0.2f;
+                        ai.phase = 6;
+                        break;
+                    case 6:
+                        if(timeData.ElapsedTime > ai.waitUntil)
+                        {
+                            ai.phase = 0;
+                        }
+                        break;
+                    default:
+                        ai.phase = 0;
+                        break;
+                }
                 //Two phases:
                 //1a: turn towards target
                 //1b: accelerate to speed relative to distance
@@ -63,7 +130,7 @@ public partial struct UpdateAIJob : IJobEntity
                 if (speed > 0.05f)
                 {
                     targetFacing = -vel / speed;
-                    float angle = Vector3.Angle(nt.facing, targetFacing);
+                    angle = Vector3.Angle(nt.facing, targetFacing);
                     if (angle < 1)
                     {
                         ac.accel += nt.facing * thrust;
@@ -72,17 +139,14 @@ public partial struct UpdateAIJob : IJobEntity
                 else
                 {
                     float3 followPos = transformData[ai.target].Position;
-                    float3 dist = followPos - nt.nextPos;
-                    float distMag = math.length(dist);
+                    dist = followPos - nt.nextPos;
+                    distMag = math.length(dist);
                     targetFacing = dist / distMag;
                     if (distMag > 1.0)
                     {
                         ac.accel += nt.facing * thrust;
                     }
                 }
-
-                
-
 
                 break;
             default:
