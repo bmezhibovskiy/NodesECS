@@ -59,7 +59,7 @@ public struct EntityFactory
         ecb.AddComponent(sortKey, newRocket, new NextTransform { nextPos = pos, scale = 1.0f, facing = facing });
         ecb.AddComponent(sortKey, newRocket, new ConstantThrust { thrust = facing * 10.1f });
 
-        ecb.AddComponent(sortKey, newRocket, ThrustHaver.One(new float3(0, -5.0f, 0), float4x4.RotateX(math.radians(270)), float4x4.Scale(new float3(80, 80, 240)), true));
+        ecb.AddComponent(sortKey, newRocket, ThrustHaver.One(new float3(0, -1.5f, 0), 0, 50f, true));
 
         ecb.AddComponent(sortKey, newRocket, new NeedsDestroy { destroyTime = elapsedTime + 1.5 });
         ecb.AddComponent(sortKey, newRocket, new DestroyOnLevelUnload());
@@ -100,8 +100,7 @@ public struct EntityFactory
         Entity newThrust = ecb.Instantiate(sortKey, prototypes.thrust1Prototype);
         ecb.AddComponent(sortKey, newThrust, new Parent { Value = parent });
 
-        float4x4 anchor = float4x4.Translate(th.GetPos(thrusterNumber));
-        float4x4 transform = math.mul(anchor, math.mul(th.rotation, th.scale));
+        float4x4 transform = th.Transform(thrusterNumber, 1);
         ecb.AddComponent(sortKey, newThrust, new LocalToWorld { Value = math.mul(parentTransform, transform) });
         ecb.AddComponent(sortKey, newThrust, new RelativeTransform { Value = transform, lastParentValue = parentTransform });
 

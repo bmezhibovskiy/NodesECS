@@ -65,20 +65,10 @@ public partial struct UpdatePlayerShipJob: IJobEntity
         {
             ship.lightsOn = !ship.lightsOn;
         }
-
-        if (Globals.sharedInputState.Data.AfterburnerKeyDown && !ship.afterburnerOn)
-        {
-            ship.afterburnerOn = true;
-            th.scale = float4x4.Scale(new float3(9, 9, 32));
-        }
-        else if (!Globals.sharedInputState.Data.AfterburnerKeyDown && ship.afterburnerOn)
-        {
-            ship.afterburnerOn = false;
-            th.scale = float4x4.Scale(new float3(7, 7, 16));
-        }
-        
+        Utils.DebugDrawCircle(nt.nextPos, 0.1f, Color.white, 20);
     }
 }
+
 
 [BurstCompile]
 public partial struct UpdateShipsWithStationsJob: IJobEntity

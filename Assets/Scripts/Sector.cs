@@ -264,9 +264,7 @@ public class Sector : MonoBehaviour
             em.AddComponentData(e, new AIData { type = AIData.Type.GoToPosition, target = playerEntity, phase = 0 });
         }
 
-        float4x4 scale = float4x4.Scale(new float3(7, 7, 16));
-        float4x4 rotation = math.mul(float4x4.RotateX(math.radians(180)), float4x4.RotateY(math.radians(90)));
-        em.AddComponentData(e, ThrustHaver.Two(new float3(-0.57f, 0.3f, 0), new float3(-0.57f, -0.3f, 0), rotation, scale, false));
+        em.AddComponentData(e, ThrustHaver.Two(new float3(-0.35f, 0.3f, 0), new float3(-0.35f, -0.3f, 0), 270f, 10f, false));
 
         em.AddComponentData(e, new DestroyOnLevelUnload());
 

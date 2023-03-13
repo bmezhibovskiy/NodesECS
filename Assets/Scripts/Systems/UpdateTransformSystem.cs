@@ -89,7 +89,13 @@ public partial struct IntegrateAcceleratingJob : IJobEntity
         
         float dt = timeData.DeltaTime;
         float3 shipPos = nt.nextPos;
+
+        //Before integrating, we want to move the current position towards the grid point it's supposed to be at
+        //Since we're not updating the prevPos, this effectively increases velocity in the direction of that point
+        //That grid point is recalculated every frame in another job, so the difference is very small.
+        //This roughly achieves orbit-like mechanics, which moving the position (by updating prevPos) can't do.
         float3 current = shipPos + (a.GridPosition(transformData) - shipPos) * dt;
+
         nt.nextPos = 2 * current - a.prevPos + a.accel * (dt * dt);
         a.accel = float3.zero;
         a.prevPos = current;

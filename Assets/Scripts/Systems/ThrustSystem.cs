@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Core;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -10,13 +11,18 @@ using UnityEngine;
 
 public struct Thrust: IComponentData
 {
+    public readonly static float3 baseScaleVec = new float3(1, 1, 3);
+    public static float4x4 BaseTransform(float scale = 1f)
+    {
+        return math.mul(float4x4.RotateX(math.radians(270)), math.mul(float4x4.Scale(baseScaleVec * scale), float4x4.Translate(new float3(0, 0, -0.01f))));
+    }
     public int thrusterNumber;
 }
 
 public struct ThrustHaver : IComponentData
 {
     public readonly static ThrustHaver Empty = new ThrustHaver { thrustEntity1 = Entity.Null, thrustEntity2 = Entity.Null, thrustEntity3 = Entity.Null, numThrusters = 0, shouldShowThrust = false };
-    public static ThrustHaver One(float3 pos, float4x4 rotation, float4x4 scale, bool onByDefault)
+    public static ThrustHaver One(float3 pos, float rotation, float scale, bool onByDefault)
     {
         ThrustHaver th = Empty;
         th.numThrusters = 1;
@@ -26,7 +32,7 @@ public struct ThrustHaver : IComponentData
         th.rotation = rotation;
         return th;
     }
-    public static ThrustHaver Two(float3 pos1, float3 pos2, float4x4 rotation, float4x4 scale, bool onByDefault)
+    public static ThrustHaver Two(float3 pos1, float3 pos2, float rotation, float scale, bool onByDefault)
     {
         ThrustHaver th = Empty;
         th.numThrusters = 2;
@@ -38,7 +44,7 @@ public struct ThrustHaver : IComponentData
         return th;
     }
 
-    public static ThrustHaver Three(float3 pos1, float3 pos2, float pos3, float4x4 rotation, float4x4 scale, bool onByDefault)
+    public static ThrustHaver Three(float3 pos1, float3 pos2, float pos3, float rotation, float scale, bool onByDefault)
     {
         ThrustHaver th = Empty;
         th.numThrusters = 3;
@@ -56,10 +62,16 @@ public struct ThrustHaver : IComponentData
     public float3 thrustPos1;
     public float3 thrustPos2;
     public float3 thrustPos3;
-    public float4x4 scale;
-    public float4x4 rotation;
+    public float scale;
+    public float rotation;
     public int numThrusters;
     public bool shouldShowThrust;
+
+    public float4x4 Transform(int index, float thrustScaleAmount)
+    {
+        float4x4 thTransform = math.mul(float4x4.Translate(GetPos(index)), float4x4.RotateZ(math.radians(rotation)));
+        return math.mul(thTransform, Thrust.BaseTransform(scale * thrustScaleAmount));
+    }
 
     public float3 GetPos(int index)
     {
@@ -75,6 +87,7 @@ public struct ThrustHaver : IComponentData
                 return float3.zero;
         }
     }
+
     public Entity Get(int index)
     {
         switch(index)
@@ -161,13 +174,16 @@ public partial struct AssignThrustEntityJob : IJobEntity
 public partial struct UpdateThrustTransformJob : IJobEntity
 {
     [ReadOnly] public ComponentLookup<ThrustHaver> thrustHaverData;
+    [ReadOnly] public ComponentLookup<Accelerating> acceleratingData;
+    [ReadOnly] public TimeData timeData;
     void Execute(ref RelativeTransform rt, in Thrust t, in Parent p)
     {
         ThrustHaver th = thrustHaverData[p.Value];
-        float4x4 scale = th.shouldShowThrust ? th.scale : float4x4.zero;
+        Accelerating ac = acceleratingData[p.Value];
 
-        float4x4 anchor = float4x4.Translate(th.GetPos(t.thrusterNumber));
-        float4x4 transform = math.mul(anchor, math.mul(th.rotation, scale));
+        float thrustScale = 1;// + math.length(ac.accel) * 0.3f;
+
+        float4x4 transform = th.Transform(t.thrusterNumber, thrustScale);
 
         rt.Value = transform;
     }
@@ -187,6 +203,7 @@ public partial struct ThrustSystem : ISystem
 {
     [ReadOnly] private ComponentLookup<NeedsAssignThrustEntity> needsAssignThrustData;
     [ReadOnly] private ComponentLookup<ThrustHaver> thrustHaverData;
+    [ReadOnly] private ComponentLookup<Accelerating> acceleratingData;
     private EntityQuery assignThrustEntitiesQuery;
 
     [BurstCompile]
@@ -194,6 +211,7 @@ public partial struct ThrustSystem : ISystem
     {
         needsAssignThrustData = SystemAPI.GetComponentLookup<NeedsAssignThrustEntity>();
         thrustHaverData = SystemAPI.GetComponentLookup<ThrustHaver>();
+        acceleratingData = SystemAPI.GetComponentLookup<Accelerating>();
         assignThrustEntitiesQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<NeedsAssignThrustEntity>().Build(ref systemState);
     }
 
@@ -208,6 +226,7 @@ public partial struct ThrustSystem : ISystem
     {
         needsAssignThrustData.Update(ref systemState);
         thrustHaverData.Update(ref systemState);
+        acceleratingData.Update(ref systemState);
         NativeArray<Entity> entitiesThatNeedAssignThrust = assignThrustEntitiesQuery.ToEntityArray(systemState.WorldUpdateAllocator);
 
         EndSimulationEntityCommandBufferSystem.Singleton ecbSystem = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>();
@@ -216,7 +235,7 @@ public partial struct ThrustSystem : ISystem
 
         systemState.Dependency = new CreateThrustJob { ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
 
-        systemState.Dependency = new UpdateThrustTransformJob { thrustHaverData = thrustHaverData }.ScheduleParallel(systemState.Dependency);
+        systemState.Dependency = new UpdateThrustTransformJob { thrustHaverData = thrustHaverData, acceleratingData = acceleratingData, timeData = SystemAPI.Time }.ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new UpdateThrustDisplayJob().ScheduleParallel(systemState.Dependency);
     }
