@@ -15,7 +15,8 @@ public partial struct UpdatePlayerShipJob: IJobEntity
     {
         float dt = timeData.DeltaTime;
         float rspeed = ship.rotationSpeed * dt;
-        float fspeed = ship.thrust;
+        float fspeed = ship.maxThrust * (Globals.sharedInputState.Data.AfterburnerKeyDown ? 2 : 1);
+        float jerk = ship.jerk * dt;
         if (docked.dockedAt == Entity.Null && !ship.PreparingHyperspace())
         {
             if (Globals.sharedInputState.Data.RotateLeftKeyDown)
@@ -26,46 +27,45 @@ public partial struct UpdatePlayerShipJob: IJobEntity
             {
                 nt.Rotate(-rspeed);
             }
-            if (Globals.sharedInputState.Data.ForwardThrustKeyDown)
+
+            if(Globals.sharedInputState.Data.ForwardThrustKeyDown)
             {
-                a.accel += (fspeed * nt.facing);
+                if (a.accelStartedAt == 0)
+                {
+                    a.accelStartedAt = timeData.ElapsedTime;
+                }
+
+                float accelMagnitude = math.min(fspeed, jerk * (float)(timeData.ElapsedTime - a.accelStartedAt));
+                a.accel += accelMagnitude * nt.facing;
             }
-            if (Globals.sharedInputState.Data.ReverseThrustKeyDown)
+            else
             {
-                a.accel += (-fspeed * nt.facing);
+                a.accelStartedAt = 0;
             }
 
             ship.shootingPrimary = Globals.sharedInputState.Data.PrimaryWeaponKeyDown;
             ship.shootingSecondary = Globals.sharedInputState.Data.SecondaryWeaponKeyDown;
         }
-        if (Globals.sharedInputState.Data.AfterburnerKeyDown)
+        if (Globals.sharedInputState.Data.AfterburnerKeyDown && docked.dockedAt != Entity.Null)
         {
-            if (docked.dockedAt == Entity.Null)
-            {
-                a.accel += (fspeed * 2.0f * nt.facing);
-            }
-            else
-            {
-                docked.isUndocking = true;
-            }
+            docked.isUndocking = true;
         }
         if (Globals.sharedInputState.Data.HyperspaceKeyDown)
         {
-            if(!ship.PreparingHyperspace())
+            if (!ship.PreparingHyperspace())
             {
                 int targetIndex = 0;
-                if(Globals.sharedLevelInfo.Data.sectorIndex == 0)
+                if (Globals.sharedLevelInfo.Data.sectorIndex == 0)
                 {
                     targetIndex = 3;
                 }
                 ship.StartHyperspace(targetIndex, 50);
             }
         }
-        if(Globals.sharedInputState.Data.LightsKeyPressed)
+        if (Globals.sharedInputState.Data.LightsKeyPressed)
         {
             ship.lightsOn = !ship.lightsOn;
         }
-        Utils.DebugDrawCircle(nt.nextPos, 0.1f, Color.white, 20);
     }
 }
 

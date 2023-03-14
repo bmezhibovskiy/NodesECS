@@ -93,7 +93,8 @@ public struct Ship : IComponentData
 {
     public float size;
 
-    public float thrust;
+    public float maxThrust;
+    public float jerk;
     public float rotationSpeed;
 
     public int hyperspaceNodesRequired;

@@ -2,7 +2,8 @@
     "ships": [
         {
             "name": "Scaphe",
-            "thrust": 2.0,
+            "maxThrust": 2.0,
+            "jerk": 400.0,
             "rotationSpeed": 4.0,
             "displayInfo": {
                 "initialScale": 0.12,

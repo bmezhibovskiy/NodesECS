@@ -12,6 +12,16 @@ public struct NeedsDestroy: IComponentData
 }
 
 [BurstCompile]
+public partial struct ClearAccelerationJob : IJobEntity
+{
+    void Execute(ref Accelerating a)
+    {
+        a.prevAccel = a.accel;
+        a.accel = float3.zero;
+    }
+}
+
+[BurstCompile]
 public partial struct DestroyNeededEntitiesJob : IJobEntity
 {
     [ReadOnly] public TimeData timeData;
@@ -44,6 +54,7 @@ public partial struct DestroyAllEntitiesJob : IJobEntity
     }
 }
 
+[UpdateInGroup(typeof(PresentationSystemGroup), OrderFirst = true)]
 [BurstCompile]
 public partial struct CleanupSystem : ISystem
 {
@@ -61,6 +72,8 @@ public partial struct CleanupSystem : ISystem
     {
 
     }
+
+
     [BurstCompile]
     public void OnUpdate(ref SystemState systemState)
     {
@@ -69,6 +82,8 @@ public partial struct CleanupSystem : ISystem
         BeginSimulationEntityCommandBufferSystem.Singleton ecbSystem = SystemAPI.GetSingleton<BeginSimulationEntityCommandBufferSystem.Singleton>();
 
         NativeArray<Entity> childEntities = childEntityQuery.ToEntityArray(systemState.WorldUpdateAllocator);
+
+        systemState.Dependency = new ClearAccelerationJob().ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new DestroyNeededEntitiesJob { timeData = SystemAPI.Time, entitiesThatHaveParents = childEntities, parentData = parentData, ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
 

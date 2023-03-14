@@ -7,7 +7,8 @@ using UnityEngine;
 public struct ShipInfo
 {
     public string name;
-    public float thrust;
+    public float maxThrust;
+    public float jerk;
     public float rotationSpeed;
     public DisplayInfo displayInfo;
 }

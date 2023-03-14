@@ -181,7 +181,7 @@ public partial struct UpdateThrustTransformJob : IJobEntity
         ThrustHaver th = thrustHaverData[p.Value];
         Accelerating ac = acceleratingData[p.Value];
 
-        float thrustScale = 1;// + math.length(ac.accel) * 0.3f;
+        float thrustScale = 1 - 1 / (1 + math.length(ac.prevAccel)); // 1-1/(1+x) is the same as x/(x+1)
 
         float4x4 transform = th.Transform(t.thrusterNumber, thrustScale);
 

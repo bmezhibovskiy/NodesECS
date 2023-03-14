@@ -68,7 +68,7 @@ public class Sector : MonoBehaviour
             AddStation(si.name, si.type, si.position, si.size, si.factionIndex, si.moduleInfos);
         }
         this.playerEntity = AddShip("Scaphe", this.startPos, true);
-        AddShip("Scaphe", new float3(-4,1,0), false);
+        //AddShip("Scaphe", new float3(-4,1,0), false);
     }
 
     void Update()
@@ -238,12 +238,13 @@ public class Sector : MonoBehaviour
         ShipInfo info = shipInfos[name];
 
         em.AddComponentData(e, new NextTransform { facing = new float3(1, 0, 0), nextPos = pos, scale = 1f });
-        em.AddComponentData(e, new Accelerating { prevPos = pos, accel = float3.zero, vel = float3.zero, nodeOffset = float3.zero, closestNodes = ClosestNodes.empty }); ;
+        em.AddComponentData(e, new Accelerating { prevPos = pos, accel = float3.zero, prevAccel = float3.zero, vel = float3.zero, nodeOffset = float3.zero, closestNodes = ClosestNodes.empty }); ;
 
         Ship s = new Ship
         {
             size = 0.25f,
-            thrust = info.thrust,
+            maxThrust = info.maxThrust,
+            jerk = info.jerk,
             rotationSpeed = info.rotationSpeed,
             weaponSlots = WeaponSlots.Empty,
             shootingPrimary = false,

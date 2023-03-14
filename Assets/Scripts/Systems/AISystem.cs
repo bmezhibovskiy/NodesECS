@@ -35,7 +35,7 @@ public partial struct UpdateAIJob : IJobEntity
         {
             Ship ship = shipData[e];
             rotationSpeed = ship.rotationSpeed;
-            thrust = ship.thrust;
+            thrust = ship.maxThrust;
         }
         rotationSpeed *= dt;
 

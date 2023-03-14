@@ -54,12 +54,12 @@ public struct EntityFactory
         float4x4 rotation = float4x4.RotateZ(math.radians(270));
         float4x4 initialTransform = math.mul(rotation, scale);
         ecb.AddComponent(sortKey, newRocket, new LocalToWorld { Value = math.mul(float4x4.Translate(pos), initialTransform) });
-        ecb.AddComponent(sortKey, newRocket, new Accelerating { prevPos = pos, accel = float3.zero, nodeOffset = float3.zero, vel = float3.zero });
+        ecb.AddComponent(sortKey, newRocket, new Accelerating { prevPos = pos, accel = float3.zero, prevAccel = float3.zero, nodeOffset = float3.zero, vel = float3.zero });
         ecb.AddComponent(sortKey, newRocket, new InitialTransform { Value = initialTransform });
         ecb.AddComponent(sortKey, newRocket, new NextTransform { nextPos = pos, scale = 1.0f, facing = facing });
         ecb.AddComponent(sortKey, newRocket, new ConstantThrust { thrust = facing * 10.1f });
 
-        ecb.AddComponent(sortKey, newRocket, ThrustHaver.One(new float3(0, -1.5f, 0), 0, 50f, true));
+        ecb.AddComponent(sortKey, newRocket, ThrustHaver.One(new float3(0, -3.4f, 0), 0, 90f, true));
 
         ecb.AddComponent(sortKey, newRocket, new NeedsDestroy { destroyTime = elapsedTime + 1.5 });
         ecb.AddComponent(sortKey, newRocket, new DestroyOnLevelUnload());

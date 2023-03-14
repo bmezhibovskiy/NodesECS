@@ -97,7 +97,6 @@ public partial struct IntegrateAcceleratingJob : IJobEntity
         float3 current = shipPos + (a.GridPosition(transformData) - shipPos) * dt;
 
         nt.nextPos = 2 * current - a.prevPos + a.accel * (dt * dt);
-        a.accel = float3.zero;
         a.prevPos = current;
         a.vel = nt.nextPos - current;
     }

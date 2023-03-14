@@ -84,10 +84,12 @@ public struct ClosestNodes
 public struct Accelerating: IComponentData
 {
     public float3 prevPos;
+    public float3 prevAccel;
     public float3 accel;
     public float3 vel;
     public ClosestNodes closestNodes;
     public float3 nodeOffset;
+    public double accelStartedAt;
 
     public float3 AverageNodePos(ComponentLookup<LocalToWorld> transformData)
     {
