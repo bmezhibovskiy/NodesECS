@@ -35,7 +35,7 @@
                     },
                     {
                         "mesh": "Strut Hull Pieces",
-                        "material": "Main Hull"
+                        "material": "Strut Hull Pieces"
                     }
                 ],
                 "lights": [

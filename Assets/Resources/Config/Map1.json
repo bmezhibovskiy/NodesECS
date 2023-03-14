@@ -21,7 +21,7 @@
 						"y": 2.0,
 						"z": 0.0
 					},
-					"size": 0.9,
+					"size": 1.8,
 					"factionIndex": 0,
 					"moduleInfos": [
 						{
@@ -31,6 +31,10 @@
 						{
 							"type": "NodeEater",
 							"parameters": []
+						},
+						{
+							"type": "ShipSphereCollider",
+							"parameters": [ 1.8, 0.7 ]
 						}
 					]
 				},
@@ -42,7 +46,7 @@
 						"y": -5.0,
 						"z": 0.0
 					},
-					"size": 0.6,
+					"size": 1.6,
 					"factionIndex": 0,
 					"moduleInfos": [
 						{
@@ -51,7 +55,7 @@
 						},
 						{
 							"type": "ShipSphereCollider",
-							"parameters": [ 0.6, 0.5 ]
+							"parameters": [ 1.6, 0.5 ]
 						}
 					]
 				}
