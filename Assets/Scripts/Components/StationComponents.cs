@@ -112,7 +112,6 @@ public struct StationModules
 
 public struct Station: IComponentData
 {
-    public FixedString128Bytes displayName;
     public float size;
     public int factionIndex;
     public StationModules modules;

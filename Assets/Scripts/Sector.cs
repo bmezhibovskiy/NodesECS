@@ -194,7 +194,7 @@ public class Sector : MonoBehaviour
             }
             modules.Add(module);
         }
-        Station s = new Station { displayName = new FixedString128Bytes(name), size = size, factionIndex = factionIndex, modules = modules };
+        Station s = new Station { size = size, factionIndex = factionIndex, modules = modules };
         em.AddComponentData(e, s);
         em.AddComponentData(e, new DestroyOnLevelUnload());
 
