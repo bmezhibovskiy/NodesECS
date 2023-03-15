@@ -195,6 +195,7 @@ MonoBehaviour:
   - {fileID: -7089757308646879465}
   - {fileID: -8770122170507510650}
   - {fileID: -1160628840256308094}
+  - {fileID: 7570863651302092746}
 --- !u!114 &448115243408767295
 MonoBehaviour:
   m_ObjectHideFlags: 3
@@ -695,6 +696,23 @@ MonoBehaviour:
   maxNits:
     m_OverrideState: 0
     m_Value: 1000
+--- !u!114 &7570863651302092746
+MonoBehaviour:
+  m_ObjectHideFlags: 3
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a030f5737b65b974387a80d80effac8a, type: 3}
+  m_Name: Shockwave
+  m_EditorClassIdentifier: 
+  active: 1
+  shockwaveData:
+    m_OverrideState: 1
+    m_Value:
+    - {x: 0.5, y: 0.5, z: 0, w: 100}
 --- !u!114 &7686318427622180703
 MonoBehaviour:
   m_ObjectHideFlags: 3
