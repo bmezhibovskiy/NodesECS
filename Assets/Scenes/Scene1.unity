@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0, g: 0, b: 0, a: 1}
+  m_IndirectSpecularColor: {r: 0.08630372, g: 0.08630372, b: 0.08630372, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -133,6 +133,7 @@ GameObject:
   m_Component:
   - component: {fileID: 352188270}
   - component: {fileID: 352188271}
+  - component: {fileID: 352188272}
   m_Layer: 0
   m_Name: ScriptHolder
   m_TagString: Untagged
@@ -174,6 +175,23 @@ MonoBehaviour:
   rocketMaterial: {fileID: 2100000, guid: e941d0d6425697b499256f89933a0df2, type: 2}
   thrustMesh: {fileID: 2534964839176971238, guid: 5d7ba39e43c19354b9dfac50303893ff, type: 3}
   thrustMaterial: {fileID: -876546973899608171, guid: 692cef5c7c254a347ab479de160a9631, type: 3}
+--- !u!114 &352188272
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 352188268}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 172515602e62fb746b5d573b38a5fe58, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_IsGlobal: 1
+  priority: 0
+  blendDistance: 0
+  weight: 1
+  sharedProfile: {fileID: 11400000, guid: 685b89b813b6c83428bcc34b70550392, type: 2}
 --- !u!1 &524356878
 GameObject:
   m_ObjectHideFlags: 1
