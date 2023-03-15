@@ -711,8 +711,7 @@ MonoBehaviour:
   active: 1
   shockwaveData:
     m_OverrideState: 1
-    m_Value:
-    - {x: 0.5, y: 0.5, z: 0, w: 100}
+    m_Value: []
 --- !u!114 &7686318427622180703
 MonoBehaviour:
   m_ObjectHideFlags: 3
