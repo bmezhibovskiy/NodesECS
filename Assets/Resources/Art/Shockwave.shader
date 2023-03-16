@@ -59,8 +59,10 @@ Shader "Hidden/Shader/Shockwave"
         //Higher magnitude means faster falloff and a skinnier shockwave
         double strengthExponent = -50;
 
+        float strengthFalloff = 5000;
         //Higher maxStrength increases the amplitude, or distortion amount
-        double maxStrength = 0.16;
+        //Decays over time
+        double maxStrength = 0.16 / (1+radius*radius*radius*strengthFalloff);
 
         //Strength falls off quickly as distance increases
         double strength = maxStrength * pow(dist + 1, strengthExponent);
@@ -91,7 +93,7 @@ Shader "Hidden/Shader/Shockwave"
             float2 distortion = ShockwaveDistortion(pos, time, baseUV);
 
             modifiedUV += distortion;
-            //testColor += float4(distortion.x, distortion.y, 0, 0);
+            testColor += float4(distortion.x, distortion.y, 0, 0);
         }
 
         float2 finalUV = baseUV + modifiedUV;
