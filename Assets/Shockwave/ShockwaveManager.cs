@@ -69,7 +69,7 @@ namespace com.borismez.ShockwavesHDRP
                     //Order doesn't matter, so we can delete a shockwave by moving the last one to its index, and decrementing count
                     --numShockwaves;
                     shockwaveGeometry[i] = shockwaveGeometry[numShockwaves];
-                    shockwaveParams[i] = shockwaveGeometry[numShockwaves];
+                    shockwaveParams[i] = shockwaveParams[numShockwaves];
                     shockwaveMetadata[i] = shockwaveMetadata[numShockwaves];
                 }
 
