@@ -4,6 +4,7 @@ using Unity.Entities;
 using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.Assertions;
+using com.borismez.ShockwavesHDRP;
 
 public class SectorConnection : IEquatable<SectorConnection>
 {
@@ -32,14 +33,17 @@ public class Map : MonoBehaviour
     private EntityManager em;
     private EntityQuery allEntitiesQuery;
 
+    private ShockwaveManager shockwaveManager;
+
     Dictionary<string, PartsRenderInfo> partsRenderInfos;
 
-    public void Instantiate(Camera mainCamera, Dictionary<string, PartsRenderInfo> partsRenderInfos, ShipInfos shipInfos, StationTypeInfos stationInfos)
+    public void Instantiate(Camera mainCamera, Dictionary<string, PartsRenderInfo> partsRenderInfos, ShipInfos shipInfos, StationTypeInfos stationInfos, ShockwaveManager shockwaveManager)
     {
         this.mainCamera = mainCamera;
         this.partsRenderInfos = partsRenderInfos;
         this.shipInfos = shipInfos;
         this.stationInfos = stationInfos;
+        this.shockwaveManager = shockwaveManager;
         this.mapInfo = MapInfo.FromJsonFile(infoFilename);
         currentSectorIndex = mapInfo.startingSectorIndex;
         Assert.IsTrue(mapInfo.sectorInfos.Length > currentSectorIndex);
@@ -71,7 +75,7 @@ public class Map : MonoBehaviour
         SectorInfo sectorInfo = mapInfo.sectorInfos[currentSectorIndex];
         GameObject newSector = new GameObject("Sector " + currentSectorIndex.ToString());
         Sector sectorComponent = newSector.AddComponent<Sector>();
-        sectorComponent.Initialize(sectorInfo, mainCamera, this, partsRenderInfos, shipInfos, stationInfos);
+        sectorComponent.Initialize(sectorInfo, mainCamera, this, partsRenderInfos, shipInfos, stationInfos, shockwaveManager);
         currentSector = newSector;
     }
 }

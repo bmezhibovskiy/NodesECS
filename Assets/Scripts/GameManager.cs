@@ -7,6 +7,7 @@ using UnityEngine.Rendering;
 using Unity.Mathematics;
 using Unity.Transforms;
 using Unity.Assertions;
+using com.borismez.ShockwavesHDRP;
 
 public static class Globals
 {
@@ -88,6 +89,9 @@ public class GameManager : MonoBehaviour
     [SerializeField]
     Material thrustMaterial;
 
+    [SerializeField]
+    ShockwaveManager shockwaveManager;
+
     ShipInfos shipInfos;
     StationTypeInfos stationTypeInfos;
 
@@ -95,16 +99,8 @@ public class GameManager : MonoBehaviour
 
     GameObject mapObject;
 
-    List<Vector4> shockwaves = new List<Vector4>();
-    int numShockwaves = 0;
-
-
     void Start()
     {
-        for(int i = 0; i < Shockwave.MAX_SHOCKWAVES; ++i)
-        {
-            shockwaves.Add(Vector4.zero);
-        }
 
         GraphicsSettings.useScriptableRenderPipelineBatching = true;
 
@@ -127,7 +123,7 @@ public class GameManager : MonoBehaviour
         mapObject = new GameObject("Map");
         Map map = mapObject.AddComponent<Map>();
 
-        map.Instantiate(mainCamera, partsRenderInfos, shipInfos, stationTypeInfos);
+        map.Instantiate(mainCamera, partsRenderInfos, shipInfos, stationTypeInfos, shockwaveManager);
     }
 
     private void SetUpPrototypes()
@@ -148,33 +144,6 @@ public class GameManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-
-        float speed = 0.5f;
-        float maxTime = 0.4f;
-        for (int i = 0; i < numShockwaves; ++i)
-        {
-            Vector4 current = shockwaves[i];
-            if (current.w > maxTime)
-            {
-                //Order doesn't matter, so we can delete a shockwave by moving the last one to its index, and decrementing count
-                shockwaves[i] = shockwaves[--numShockwaves];
-            }
-
-            shockwaves[i] = new Vector4(shockwaves[i].x, shockwaves[i].y, 0, shockwaves[i].w + speed * Time.deltaTime);
-        }
-
-        if (Input.GetMouseButtonDown(0))
-        {
-            Vector4 posTime = new Vector4(Input.mousePosition.x / Screen.width, Input.mousePosition.y / Screen.height, 0, 0);
-            shockwaves[numShockwaves++] = posTime;
-        }
-
-        Shockwave shockWave;
-        GetComponent<Volume>().profile.TryGet(out shockWave);
-
-        shockWave.numShockwaves.Override(numShockwaves);
-        shockWave.shockwaveData.Override(shockwaves);
-
         UpdateInput();
 
         UpdateFPSCounter();

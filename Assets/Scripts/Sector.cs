@@ -3,10 +3,8 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using Unity.Collections;
-using Unity.Rendering;
 using System.Collections.Generic;
-using UnityEngine.Rendering;
-using System.Linq;
+using com.borismez.ShockwavesHDRP;
 
 public class Sector : MonoBehaviour
 {
@@ -15,6 +13,7 @@ public class Sector : MonoBehaviour
     private Dictionary<string, PartsRenderInfo> partsRenderInfos;
     private Dictionary<string, ShipInfo> shipInfos;
     private Dictionary<string, StationTypeInfo> stationTypeInfos;
+    private ShockwaveManager shockwaveManager;
     Dictionary<Entity, List<GameObject>> lightObjects = new Dictionary<Entity, List<GameObject>>();
 
     string displayName;
@@ -36,7 +35,7 @@ public class Sector : MonoBehaviour
     {
     }
 
-    public void Initialize(SectorInfo info, Camera mainCamera, Map parent, Dictionary<string, PartsRenderInfo> partsRenderInfos, ShipInfos shipInfos, StationTypeInfos stationInfos)
+    public void Initialize(SectorInfo info, Camera mainCamera, Map parent, Dictionary<string, PartsRenderInfo> partsRenderInfos, ShipInfos shipInfos, StationTypeInfos stationInfos, ShockwaveManager shockwaveManager)
     {
         this.displayName = info.name;
         this.sideLength = info.sideLength;
@@ -48,6 +47,7 @@ public class Sector : MonoBehaviour
         this.partsRenderInfos = partsRenderInfos;
         this.shipInfos = shipInfos.ToDictionary();
         this.stationTypeInfos = stationInfos.ToDictionary();
+        this.shockwaveManager = shockwaveManager;
 
         this.numNodes = numSideNodes * numSideNodes;
         this.nodeDistance = sideLength / (float)numSideNodes;
@@ -78,7 +78,8 @@ public class Sector : MonoBehaviour
         if (isPlayerJumping) { return; }
 
         float3 shipPos = em.GetComponentData<LocalToWorld>(playerEntity).Position;
-        mainCamera.transform.position = new Vector3(shipPos.x, shipPos.y, mainCamera.transform.position.z);
+        float camPosScale = 0.9f;
+        mainCamera.transform.position = new Vector3(shipPos.x * camPosScale, shipPos.y * camPosScale, mainCamera.transform.position.z);
 
         Ship ship = em.GetComponentData<Ship>(playerEntity);
         if(ship.ShouldJumpNow())
@@ -86,6 +87,10 @@ public class Sector : MonoBehaviour
             isPlayerJumping = true;
             int newSectorId = ship.hyperspaceTarget;
             parent.Jump(newSectorId);
+        }
+        if(Time.frameCount % 120 == 0)
+        {
+            shockwaveManager.AddShockwave(shipPos, mainCamera, 0.5f, Time.time + 1.0f);
         }
     }
 

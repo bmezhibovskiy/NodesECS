@@ -19,6 +19,15 @@ Shader "Hidden/Shader/Shockwave"
 
     #define _PI 3.1415926535897932384626433832795
 
+    //Higher magnitude means faster falloff and a skinnier shockwave. Must be negative.
+    static const float distortionExponent = -50;
+
+    //Higher number means the shockwave distorts more intensely overall
+    static const float maxAmplitude = 0.16;
+
+    //Higher number means the shockwave dissipates faster.
+    static const float decayFactor = 5000;
+
     struct Attributes
     {
         uint vertexID : SV_VertexID;
@@ -42,37 +51,28 @@ Shader "Hidden/Shader/Shockwave"
         return output;
     }
 
-    // List of properties to control your post process effect
-    float4 _PositionsTimes[32];
-    int _PositionsCount;
+    //xy is normalized position, w is radius
+    float4 _ShockwavesGeometry[32];
+    //x is gauge (thinness), y is intensity, z is decay speed
+    float4 _ShockwavesParams[32];
+    int _ShockwavesCount;
     float _AspectRatio;
     TEXTURE2D_X(_MainTex);
 
-    float2 ShockwaveDistortion(float2 centerUV, float radius, float2 currentPixelUV)
+    float2 ShockwaveDistortion(float2 centerUV, float radius, float2 currentPixelUV, float gauge, float intensity, float decaySpeed)
     {
-        float aspectRatio = 0.5625;
-        // Calculate the distance from the perimiter of the shockwave
         float2 closestPoint = centerUV + normalize(currentPixelUV - centerUV) * radius;
         float2 distVec = currentPixelUV - closestPoint;
         float dist = length(distVec);
 
-        //Higher magnitude means faster falloff and a skinnier shockwave
-        double strengthExponent = -50;
+        float amplitude = intensity * maxAmplitude / (1 + radius * radius * radius * decayFactor * decaySpeed);
 
-        float strengthFalloff = 5000;
-        //Higher maxStrength increases the amplitude, or distortion amount
-        //Decays over time
-        double maxStrength = 0.16 / (1+radius*radius*radius*strengthFalloff);
+        float distortionAmount = amplitude * pow(dist + 1, distortionExponent * gauge);
 
-        //Strength falls off quickly as distance increases
-        double strength = maxStrength * pow(dist + 1, strengthExponent);
-
-        // return strength times normalized distVec
-        return  (-strength) * distVec / dist;
+        return -distortionAmount * distVec / dist;
     }
 
-
-    float4 CustomPostProcess(Varyings input) : SV_Target
+    float4 ShockwavePostProcess(Varyings input) : SV_Target
     {
         UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
 
@@ -82,24 +82,23 @@ Shader "Hidden/Shader/Shockwave"
 
         float2 modifiedUV = float2(0, 0);
 
-        float4 testColor = float4(0,0,0,0);
-
-        for (int i = 0; i < _PositionsCount; i++)
+        for (int i = 0; i < _ShockwavesCount; ++i)
         {
-            float4 posTime = _PositionsTimes[i];
-            float2 pos = posTime.xy * resolution;
-            float time = posTime.w;
+            float4 geometry = _ShockwavesGeometry[i];
+            float2 shockwaveCenter = geometry.xy * resolution;
+            float radius = geometry.w;
 
-            float2 distortion = ShockwaveDistortion(pos, time, baseUV);
+            float4 params = _ShockwavesParams[i];
+            float gauge = params.x;
+            float intensity = params.y;
+            float decaySpeed = params.z;
 
-            modifiedUV += distortion;
-            testColor += float4(distortion.x, distortion.y, 0, 0);
+            modifiedUV += ShockwaveDistortion(shockwaveCenter, radius, baseUV, gauge, intensity, decaySpeed);
         }
 
-        float2 finalUV = baseUV + modifiedUV;
-        float4 color = SAMPLE_TEXTURE2D_X(_MainTex, s_linear_clamp_sampler, ClampAndScaleUVForBilinearPostProcessTexture(finalUV / resolution));
+        float2 finalUV = (baseUV + modifiedUV) / resolution;
 
-        return color + testColor;
+        return SAMPLE_TEXTURE2D_X(_MainTex, s_linear_clamp_sampler, ClampAndScaleUVForBilinearPostProcessTexture(finalUV));
     }
 
     ENDHLSL
@@ -117,7 +116,7 @@ Shader "Hidden/Shader/Shockwave"
             Cull Off
 
             HLSLPROGRAM
-                #pragma fragment CustomPostProcess
+                #pragma fragment ShockwavePostProcess
                 #pragma vertex Vert
             ENDHLSL
         }
