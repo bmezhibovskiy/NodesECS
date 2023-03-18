@@ -105,11 +105,6 @@ public class Sector : MonoBehaviour
                 em.SetComponentData<NeedsDestroy>(entity, new NeedsDestroy { destroyTime = nd.destroyTime, explosionShowed = true });
             }
         }
-
-        if (Time.frameCount % 120 == 0)
-        {
-            
-        }
     }
 
     private void OnDestroy()
