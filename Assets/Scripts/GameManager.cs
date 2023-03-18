@@ -90,7 +90,7 @@ public class GameManager : MonoBehaviour
     Material thrustMaterial;
 
     [SerializeField]
-    ShockwaveManager shockwaveManager;
+    ExplosionManager explosionManager;
 
     ShipInfos shipInfos;
     StationTypeInfos stationTypeInfos;
@@ -123,7 +123,7 @@ public class GameManager : MonoBehaviour
         mapObject = new GameObject("Map");
         Map map = mapObject.AddComponent<Map>();
 
-        map.Instantiate(mainCamera, partsRenderInfos, shipInfos, stationTypeInfos, shockwaveManager);
+        map.Instantiate(mainCamera, partsRenderInfos, shipInfos, stationTypeInfos, explosionManager);
     }
 
     private void SetUpPrototypes()

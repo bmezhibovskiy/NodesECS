@@ -13,7 +13,7 @@ public class Sector : MonoBehaviour
     private Dictionary<string, PartsRenderInfo> partsRenderInfos;
     private Dictionary<string, ShipInfo> shipInfos;
     private Dictionary<string, StationTypeInfo> stationTypeInfos;
-    private ShockwaveManager shockwaveManager;
+    private ExplosionManager explosionManager;
     Dictionary<Entity, List<GameObject>> lightObjects = new Dictionary<Entity, List<GameObject>>();
 
     string displayName;
@@ -35,7 +35,7 @@ public class Sector : MonoBehaviour
     {
     }
 
-    public void Initialize(SectorInfo info, Camera mainCamera, Map parent, Dictionary<string, PartsRenderInfo> partsRenderInfos, ShipInfos shipInfos, StationTypeInfos stationInfos, ShockwaveManager shockwaveManager)
+    public void Initialize(SectorInfo info, Camera mainCamera, Map parent, Dictionary<string, PartsRenderInfo> partsRenderInfos, ShipInfos shipInfos, StationTypeInfos stationInfos, ExplosionManager explosionManager)
     {
         this.displayName = info.name;
         this.sideLength = info.sideLength;
@@ -47,7 +47,7 @@ public class Sector : MonoBehaviour
         this.partsRenderInfos = partsRenderInfos;
         this.shipInfos = shipInfos.ToDictionary();
         this.stationTypeInfos = stationInfos.ToDictionary();
-        this.shockwaveManager = shockwaveManager;
+        this.explosionManager = explosionManager;
 
         this.numNodes = numSideNodes * numSideNodes;
         this.nodeDistance = sideLength / (float)numSideNodes;
@@ -90,7 +90,7 @@ public class Sector : MonoBehaviour
         }
         if(Time.frameCount % 120 == 0)
         {
-            shockwaveManager.AddShockwave(shipPos, mainCamera, 0.5f, Time.time + 1.0f);
+            explosionManager.AddExplosion(shipPos, mainCamera, 1.0f);
         }
     }
 
