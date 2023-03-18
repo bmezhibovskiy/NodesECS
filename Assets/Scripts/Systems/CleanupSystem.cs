@@ -9,6 +9,7 @@ using UnityEngine;
 public struct NeedsDestroy: IComponentData
 {
     public double destroyTime;
+    public bool explosionShowed;
 }
 
 [BurstCompile]
@@ -30,7 +31,7 @@ public partial struct DestroyNeededEntitiesJob : IJobEntity
     public EntityCommandBuffer.ParallelWriter ecb;
     void Execute(in NeedsDestroy nd, in Entity e, [EntityIndexInQuery] int entityInQueryIndex)
     {
-        if (timeData.ElapsedTime < nd.destroyTime) { return; }
+        if (timeData.ElapsedTime < nd.destroyTime || nd.explosionShowed == false) { return; }
 
         for(int i = 0; i < entitiesThatHaveParents.Length; ++i)
         {

@@ -31,6 +31,8 @@ public class Sector : MonoBehaviour
 
     private bool isPlayerJumping = false;
 
+    private EntityQuery needExplosionEntityQuery;
+
     void Start()
     {
     }
@@ -69,6 +71,8 @@ public class Sector : MonoBehaviour
         }
         this.playerEntity = AddShip("Scaphe", this.startPos, true);
         //AddShip("Scaphe", new float3(-4,1,0), false);
+
+        needExplosionEntityQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<NeedsDestroy>().Build(em);
     }
 
     void Update()
@@ -88,9 +92,23 @@ public class Sector : MonoBehaviour
             int newSectorId = ship.hyperspaceTarget;
             parent.Jump(newSectorId);
         }
-        if(Time.frameCount % 120 == 0)
+
+        NativeArray<Entity> entities = needExplosionEntityQuery.ToEntityArray(Allocator.Temp);
+        for(int i = 0; i < entities.Length; ++i)
         {
-            explosionManager.AddExplosion(shipPos, mainCamera, 1.0f);
+           Entity entity = entities[i];
+            NeedsDestroy nd = em.GetComponentData<NeedsDestroy>(entity);
+           if(nd.destroyTime < Time.time && nd.explosionShowed == false)
+            {
+                LocalToWorld ltw = em.GetComponentData<LocalToWorld>(entity);
+                explosionManager.AddExplosion(ltw.Position, mainCamera, 1.0f);
+                em.SetComponentData<NeedsDestroy>(entity, new NeedsDestroy { destroyTime = nd.destroyTime, explosionShowed = true });
+            }
+        }
+
+        if (Time.frameCount % 120 == 0)
+        {
+            
         }
     }
 

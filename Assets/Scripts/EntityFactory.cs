@@ -61,7 +61,7 @@ public struct EntityFactory
 
         ecb.AddComponent(sortKey, newRocket, ThrustHaver.One(new float3(0, -3.4f, 0), 0, 90f, true));
 
-        ecb.AddComponent(sortKey, newRocket, new NeedsDestroy { destroyTime = elapsedTime + 1.5 });
+        ecb.AddComponent(sortKey, newRocket, new NeedsDestroy { destroyTime = elapsedTime + 1.0f });
         ecb.AddComponent(sortKey, newRocket, new DestroyOnLevelUnload());
         return newRocket;
     }

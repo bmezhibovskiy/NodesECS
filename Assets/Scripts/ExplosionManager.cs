@@ -15,8 +15,8 @@ public class ExplosionManager : MonoBehaviour
 
     public GameObject AddExplosion(Vector3 worldPos, Camera camera, float size)
     {
-        float maxTime = Time.time + size;
-        shockwaveManager.AddShockwave(worldPos, camera, 1.0f * size, maxTime);
+        float maxTime = Time.time + size * 2.0f;
+        shockwaveManager.AddShockwave(worldPos, camera, 1.0f, maxTime, 0.5f, 1.5f, 0.2f);
         GameObject newExplosion = Instantiate(ExplosionPrefab, worldPos, Quaternion.identity);
         explosions[maxTime] = newExplosion;
         return newExplosion;
