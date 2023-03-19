@@ -21,15 +21,33 @@ public class ExplosionManager : MonoBehaviour
 
     public GameObject AddExplosion(Vector3 worldPos, Camera camera, float size)
     {
+        float scale = size + 0.5f;
         GameObject ExplosionPrefab = ExplosionPrefabSmall;
-        if(size > 1) { ExplosionPrefab = ExplosionPrefabMedium; }
-        if (size > 2) { ExplosionPrefab = ExplosionPrefabLarge; }
 
-        float maxTime = Time.time + size * 2.0f;
-        shockwaveManager.AddShockwave(worldPos, camera, 1.0f, maxTime, 0.5f, 1.5f, 0.2f);
+        if (size > 1)
+        {
+            ExplosionPrefab = ExplosionPrefabMedium;
+            scale = size - 0.5f;
+        }
+        if (size > 2)
+        { 
+            ExplosionPrefab = ExplosionPrefabLarge;
+            scale = size - 1.5f;
+        }
+
+
+        float speed = 0.8f * size;
+        float maxTime = Time.time + 0.6f * size; //Bigger explosion lasts longer.
+        float gauge = 0.3f / size; //Bigger explosion is thicker
+        float intensity = 2.0f * size; //Bigger explosion is more intense
+        float decaySpeed = 1.0f / size; //Bigger explosion decays slower
+
+        shockwaveManager.AddShockwave(worldPos, camera, speed, maxTime, gauge, intensity, decaySpeed);
         GameObject newExplosion = Instantiate(ExplosionPrefab, worldPos, Quaternion.identity);
+        newExplosion.transform.localScale = Vector3.one * scale;
         explosions[maxTime] = newExplosion;
         return newExplosion;
+        //return null;
     }
 
     // Start is called before the first frame update

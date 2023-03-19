@@ -9,7 +9,7 @@ using com.borismez.ShockwavesHDRP;
 public class Sector : MonoBehaviour
 {
     [SerializeField]
-    [Range(0f, 4f)]
+    [Range(0f, 3f)]
     float explosionSize = 1.0f;
 
     Map parent;
