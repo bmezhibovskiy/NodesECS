@@ -6,7 +6,13 @@ using UnityEngine;
 public class ExplosionManager : MonoBehaviour
 {
     [SerializeField]
-    GameObject ExplosionPrefab;
+    GameObject ExplosionPrefabSmall;
+
+    [SerializeField]
+    GameObject ExplosionPrefabMedium;
+
+    [SerializeField]
+    GameObject ExplosionPrefabLarge;
 
     [SerializeField]
     ShockwaveManager shockwaveManager;
@@ -15,6 +21,10 @@ public class ExplosionManager : MonoBehaviour
 
     public GameObject AddExplosion(Vector3 worldPos, Camera camera, float size)
     {
+        GameObject ExplosionPrefab = ExplosionPrefabSmall;
+        if(size > 1) { ExplosionPrefab = ExplosionPrefabMedium; }
+        if (size > 2) { ExplosionPrefab = ExplosionPrefabLarge; }
+
         float maxTime = Time.time + size * 2.0f;
         shockwaveManager.AddShockwave(worldPos, camera, 1.0f, maxTime, 0.5f, 1.5f, 0.2f);
         GameObject newExplosion = Instantiate(ExplosionPrefab, worldPos, Quaternion.identity);

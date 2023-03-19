@@ -8,6 +8,10 @@ using com.borismez.ShockwavesHDRP;
 
 public class Sector : MonoBehaviour
 {
+    [SerializeField]
+    [Range(0f, 4f)]
+    float explosionSize = 1.0f;
+
     Map parent;
     Camera mainCamera;
     private Dictionary<string, PartsRenderInfo> partsRenderInfos;
@@ -94,14 +98,14 @@ public class Sector : MonoBehaviour
         }
 
         NativeArray<Entity> entities = needExplosionEntityQuery.ToEntityArray(Allocator.Temp);
-        for(int i = 0; i < entities.Length; ++i)
+        for (int i = 0; i < entities.Length; ++i)
         {
-           Entity entity = entities[i];
+            Entity entity = entities[i];
             NeedsDestroy nd = em.GetComponentData<NeedsDestroy>(entity);
-           if(nd.destroyTime < Time.time && nd.explosionShowed == false)
+            if (nd.destroyTime < Time.time && nd.explosionShowed == false)
             {
                 LocalToWorld ltw = em.GetComponentData<LocalToWorld>(entity);
-                explosionManager.AddExplosion(ltw.Position, mainCamera, 1.0f);
+                explosionManager.AddExplosion(ltw.Position, mainCamera, explosionSize);
                 em.SetComponentData<NeedsDestroy>(entity, new NeedsDestroy { destroyTime = nd.destroyTime, explosionShowed = true });
             }
         }
