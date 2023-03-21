@@ -733,7 +733,7 @@
     "m_Hidden": false,
     "m_ShaderOutputName": "Alpha",
     "m_StageCapability": 2,
-    "m_Value": 0.25,
+    "m_Value": 0.20000000298023225,
     "m_DefaultValue": 1.0,
     "m_Labels": []
 }
@@ -1097,7 +1097,7 @@
     "m_Hidden": false,
     "m_ShaderOutputName": "RefractionIndex",
     "m_StageCapability": 2,
-    "m_Value": 1.600000023841858,
+    "m_Value": 1.399999976158142,
     "m_DefaultValue": 1.0,
     "m_Labels": []
 }

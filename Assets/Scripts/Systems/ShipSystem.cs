@@ -183,7 +183,7 @@ public partial struct ShootWeaponsJob: IJobEntity
 {
     [ReadOnly] public TimeData timeData;
     public EntityCommandBuffer.ParallelWriter ecb;
-    void Execute(ref Ship ship, in NextTransform nt, [EntityIndexInQuery] int entityInQueryIndex)
+    void Execute(ref Ship ship, in NextTransform nt, in Entity e, [EntityIndexInQuery] int entityInQueryIndex)
     {
         double currentTime = timeData.ElapsedTime;
         for(int i = 0; i < WeaponSlots.MaxWeaponSlots; ++i)
@@ -197,10 +197,37 @@ public partial struct ShootWeaponsJob: IJobEntity
             switch (current.type)
             {
                 case WeaponType.StraightRocket:
-                    Globals.sharedEntityFactory.Data.CreateRocket1Async(entityInQueryIndex, ecb, newPos, nt.facing, timeData.ElapsedTime);
+                    Globals.sharedEntityFactory.Data.CreateRocket1Async(entityInQueryIndex, e, ecb, newPos, nt.facing, timeData.ElapsedTime);
                     break;
                 default:
                     break;
+            }
+        }
+    }
+}
+
+[BurstCompile]
+public partial struct CollideWithWeaponShotsJob : IJobEntity
+{
+    [ReadOnly] public TimeData timeData;
+    [ReadOnly] public NativeArray<Entity> shipEntities;
+    [ReadOnly] public ComponentLookup<LocalToWorld> transformData;
+    [ReadOnly] public ComponentLookup<Ship> shipData;
+    void Execute(ref NeedsDestroy nd, in WeaponShot ws, in Entity e)
+    {
+        float3 pos = transformData[e].Position;
+        for(int i = 0; i < shipEntities.Length; ++i)
+        {
+            Entity shipEntity = shipEntities[i];
+
+            if(shipEntity == ws.Shooter) { continue; }
+
+            float3 shipPos = transformData[shipEntity].Position;
+            Ship ship = shipData[shipEntity];
+            float size = ship.size + ws.size;
+            if(math.distancesq(pos, shipPos) < size * size)
+            {
+                nd.destroyTime = timeData.ElapsedTime;
             }
         }
     }
@@ -212,10 +239,10 @@ public partial struct ShipSystem : ISystem
     [ReadOnly] private ComponentLookup<LocalToWorld> transformData;
     [ReadOnly] private ComponentLookup<NextTransform> nextTransformData;
     [ReadOnly] private ComponentLookup<Station> stationData;
-    [ReadOnly] private ComponentLookup<GridNode> nodeData;
+    [ReadOnly] private ComponentLookup<Ship> shipData;
 
     private EntityQuery stationsQuery;
-    private EntityQuery nodesQuery;
+    private EntityQuery shipsQuery;
 
     [BurstCompile]
     public void OnCreate(ref SystemState systemState)
@@ -223,10 +250,10 @@ public partial struct ShipSystem : ISystem
         transformData = SystemAPI.GetComponentLookup<LocalToWorld>();
         nextTransformData = SystemAPI.GetComponentLookup<NextTransform>();
         stationData = SystemAPI.GetComponentLookup<Station>();
-        nodeData = SystemAPI.GetComponentLookup<GridNode>();
+        shipData = SystemAPI.GetComponentLookup<Ship>();
 
         stationsQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<Station, LocalToWorld>().Build(ref systemState);
-        nodesQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<GridNode, LocalToWorld>().Build(ref systemState);
+        shipsQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<Ship, LocalToWorld>().Build(ref systemState);
     }
     [BurstCompile]
     public void OnDestroy(ref SystemState systemState)
@@ -239,18 +266,20 @@ public partial struct ShipSystem : ISystem
         transformData.Update(ref systemState);
         nextTransformData.Update(ref systemState);
         stationData.Update(ref systemState);
-        nodeData.Update(ref systemState);
+        shipData.Update(ref systemState);
 
         EndSimulationEntityCommandBufferSystem.Singleton ecbSystem = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>();
 
         NativeArray<Entity> stationEntities = stationsQuery.ToEntityArray(systemState.WorldUpdateAllocator);
-        NativeArray<Entity> nodes = nodesQuery.ToEntityArray(systemState.WorldUpdateAllocator);
+        NativeArray<Entity> shipEntities = shipsQuery.ToEntityArray(systemState.WorldUpdateAllocator);
 
         systemState.Dependency = new UpdatePlayerShipJob { timeData = SystemAPI.Time }.ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new ShootWeaponsJob { timeData = SystemAPI.Time, ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new UpdateShipsWithStationsJob { stationEntities = stationEntities, stationData = stationData, transformData = transformData, timeData = SystemAPI.Time, nextTransformData = nextTransformData }.ScheduleParallel(systemState.Dependency);
+
+        systemState.Dependency = new CollideWithWeaponShotsJob { timeData = SystemAPI.Time, shipEntities = shipEntities, transformData = transformData, shipData = shipData }.ScheduleParallel(systemState.Dependency);
     }
 }
 

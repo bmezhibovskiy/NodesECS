@@ -47,7 +47,6 @@ public class ExplosionManager : MonoBehaviour
         newExplosion.transform.localScale = Vector3.one * scale;
         explosions[maxTime] = newExplosion;
         return newExplosion;
-        //return null;
     }
 
     // Start is called before the first frame update

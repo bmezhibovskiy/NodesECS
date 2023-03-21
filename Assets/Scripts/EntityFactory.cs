@@ -47,7 +47,7 @@ public struct EntityFactory
         RenderMeshUtility.AddComponents(prototypes.thrust1Prototype, em, rmd, renderMeshArray3, mmi);
     }
 
-    public Entity CreateRocket1Async(int sortKey, EntityCommandBuffer.ParallelWriter ecb, float3 pos, float3 facing, double elapsedTime)
+    public Entity CreateRocket1Async(int sortKey, Entity shooter, EntityCommandBuffer.ParallelWriter ecb, float3 pos, float3 facing, double elapsedTime)
     {
         Entity newRocket = ecb.Instantiate(sortKey, prototypes.rocket1Prototype);
         float4x4 scale = float4x4.Scale(0.1f);
@@ -58,6 +58,7 @@ public struct EntityFactory
         ecb.AddComponent(sortKey, newRocket, new InitialTransform { Value = initialTransform });
         ecb.AddComponent(sortKey, newRocket, new NextTransform { nextPos = pos, scale = 1.0f, facing = facing });
         ecb.AddComponent(sortKey, newRocket, new ConstantThrust { thrust = facing * 10.1f });
+        ecb.AddComponent(sortKey, newRocket, new WeaponShot { Shooter = shooter, size = 0.1f });
 
         ecb.AddComponent(sortKey, newRocket, ThrustHaver.One(new float3(0, -3.4f, 0), 0, 90f, true));
 

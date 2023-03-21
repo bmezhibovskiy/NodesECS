@@ -74,7 +74,7 @@ public class Sector : MonoBehaviour
             AddStation(si.name, si.type, si.position, si.size, si.factionIndex, si.moduleInfos);
         }
         this.playerEntity = AddShip("Scaphe", this.startPos, true);
-        //AddShip("Scaphe", new float3(-4,1,0), false);
+        AddShip("Scaphe", new float3(-4,1,0), false);
 
         needExplosionEntityQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<NeedsDestroy>().Build(em);
     }
@@ -86,7 +86,7 @@ public class Sector : MonoBehaviour
         if (isPlayerJumping) { return; }
 
         float3 shipPos = em.GetComponentData<LocalToWorld>(playerEntity).Position;
-        float camPosScale = 0.9f;
+        float camPosScale = 0.96f;
         mainCamera.transform.position = new Vector3(shipPos.x * camPosScale, shipPos.y * camPosScale, mainCamera.transform.position.z);
 
         Ship ship = em.GetComponentData<Ship>(playerEntity);

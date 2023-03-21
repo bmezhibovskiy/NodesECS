@@ -140,6 +140,12 @@ public struct ConstantThrust: IComponentData
     public float3 thrust;
 }
 
+public struct WeaponShot : IComponentData
+{
+    public Entity Shooter;
+    public float size;
+}
+
 public struct Player : IComponentData
 {
 
