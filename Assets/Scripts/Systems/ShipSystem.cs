@@ -234,15 +234,41 @@ public partial struct CollideWithWeaponShotsJob : IJobEntity
 }
 
 [BurstCompile]
+public partial struct AOEAffectShipJob : IJobEntity
+{
+    [ReadOnly] public TimeData timeData;
+    [ReadOnly] public NativeArray<Entity> aoeEntities;
+    [ReadOnly] public ComponentLookup<AreaOfEffect> aoeData;
+    [ReadOnly] public ComponentLookup<LocalToWorld> transformData;
+    void Execute(ref Accelerating ac, in Entity e)
+    {
+        float3 pos = transformData[e].Position;
+        for(int i = 0; i < aoeEntities.Length; ++i)
+        {
+            Entity aoeEntity = aoeEntities[i];
+            float r = aoeData[aoeEntity].radius;
+            float3 c = transformData[aoeEntity].Position;
+            float distSq = math.distancesq(pos, c);
+            if(distSq < r * r)
+            {
+                ac.accel += 100f * math.normalize(pos - c);
+            }
+        }
+    }
+}
+
+[BurstCompile]
 public partial struct ShipSystem : ISystem
 {
     [ReadOnly] private ComponentLookup<LocalToWorld> transformData;
     [ReadOnly] private ComponentLookup<NextTransform> nextTransformData;
     [ReadOnly] private ComponentLookup<Station> stationData;
     [ReadOnly] private ComponentLookup<Ship> shipData;
+    [ReadOnly] private ComponentLookup<AreaOfEffect> aoeData;
 
     private EntityQuery stationsQuery;
     private EntityQuery shipsQuery;
+    private EntityQuery aoeQuery;
 
     [BurstCompile]
     public void OnCreate(ref SystemState systemState)
@@ -251,9 +277,11 @@ public partial struct ShipSystem : ISystem
         nextTransformData = SystemAPI.GetComponentLookup<NextTransform>();
         stationData = SystemAPI.GetComponentLookup<Station>();
         shipData = SystemAPI.GetComponentLookup<Ship>();
+        aoeData = SystemAPI.GetComponentLookup<AreaOfEffect>();
 
         stationsQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<Station, LocalToWorld>().Build(ref systemState);
         shipsQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<Ship, LocalToWorld>().Build(ref systemState);
+        aoeQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<AreaOfEffect, LocalToWorld>().Build(ref systemState);
     }
     [BurstCompile]
     public void OnDestroy(ref SystemState systemState)
@@ -267,19 +295,25 @@ public partial struct ShipSystem : ISystem
         nextTransformData.Update(ref systemState);
         stationData.Update(ref systemState);
         shipData.Update(ref systemState);
+        aoeData.Update(ref systemState);
 
         EndSimulationEntityCommandBufferSystem.Singleton ecbSystem = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>();
 
         NativeArray<Entity> stationEntities = stationsQuery.ToEntityArray(systemState.WorldUpdateAllocator);
         NativeArray<Entity> shipEntities = shipsQuery.ToEntityArray(systemState.WorldUpdateAllocator);
+        NativeArray<Entity> aoeEntities = aoeQuery.ToEntityArray(systemState.WorldUpdateAllocator);
 
         systemState.Dependency = new UpdatePlayerShipJob { timeData = SystemAPI.Time }.ScheduleParallel(systemState.Dependency);
+
+        systemState.Dependency = new AOEAffectShipJob { timeData = SystemAPI.Time, aoeEntities = aoeEntities, transformData = transformData, aoeData = aoeData }.ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new ShootWeaponsJob { timeData = SystemAPI.Time, ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new UpdateShipsWithStationsJob { stationEntities = stationEntities, stationData = stationData, transformData = transformData, timeData = SystemAPI.Time, nextTransformData = nextTransformData }.ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new CollideWithWeaponShotsJob { timeData = SystemAPI.Time, shipEntities = shipEntities, transformData = transformData, shipData = shipData }.ScheduleParallel(systemState.Dependency);
+
+        
     }
 }
 

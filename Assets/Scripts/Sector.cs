@@ -5,6 +5,7 @@ using Unity.Transforms;
 using Unity.Collections;
 using System.Collections.Generic;
 using com.borismez.ShockwavesHDRP;
+using System.Drawing;
 
 public class Sector : MonoBehaviour
 {
@@ -105,7 +106,9 @@ public class Sector : MonoBehaviour
             if (nd.destroyTime < Time.time && nd.explosionShowed == false)
             {
                 LocalToWorld ltw = em.GetComponentData<LocalToWorld>(entity);
-                explosionManager.AddExplosion(ltw.Position, mainCamera, explosionSize);
+                float maxTime = Time.time + 0.6f * explosionSize; //Bigger explosion lasts longer.
+                explosionManager.AddExplosion(ltw.Position, mainCamera, explosionSize, maxTime);
+                Globals.sharedEntityFactory.Data.CreateAOENow(em, ltw.Position, explosionSize, maxTime);
                 em.SetComponentData<NeedsDestroy>(entity, new NeedsDestroy { destroyTime = nd.destroyTime, explosionShowed = true });
             }
         }

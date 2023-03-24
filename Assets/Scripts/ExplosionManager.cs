@@ -19,7 +19,7 @@ public class ExplosionManager : MonoBehaviour
 
     private Dictionary<float, GameObject> explosions = new Dictionary<float, GameObject>();
 
-    public GameObject AddExplosion(Vector3 worldPos, Camera camera, float size)
+    public GameObject AddExplosion(Vector3 worldPos, Camera camera, float size, float maxTime)
     {
         float scale = size + 0.5f;
         GameObject ExplosionPrefab = ExplosionPrefabSmall;
@@ -37,7 +37,6 @@ public class ExplosionManager : MonoBehaviour
 
 
         float speed = 0.8f * size;
-        float maxTime = Time.time + 0.6f * size; //Bigger explosion lasts longer.
         float gauge = 0.3f / size; //Bigger explosion is thicker
         float intensity = 2.0f * size; //Bigger explosion is more intense
         float decaySpeed = 1.0f / size; //Bigger explosion decays slower

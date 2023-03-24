@@ -111,4 +111,14 @@ public struct EntityFactory
         ecb.AddComponent(sortKey, newThrust, new NeedsAssignThrustEntity { parentEntity = parent, thrusterNumber = thrusterNumber });
         return newThrust;
     }
+    public Entity CreateAOENow(EntityManager em, float3 pos, float radius, float maxTime)
+    {
+        Entity e = em.CreateEntity();
+
+        em.AddComponentData(e, new AreaOfEffect { radius = radius });
+        em.AddComponentData(e, new LocalToWorld { Value = float4x4.Translate(pos) });
+        em.AddComponentData(e, new NeedsDestroy { destroyTime = maxTime, explosionShowed = true });
+        em.AddComponentData(e, new DestroyOnLevelUnload());
+        return e;
+    }
 }

@@ -146,6 +146,11 @@ public struct WeaponShot : IComponentData
     public float size;
 }
 
+public struct AreaOfEffect: IComponentData
+{
+    public float radius;
+}
+
 public struct Player : IComponentData
 {
 
