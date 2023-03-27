@@ -22,7 +22,6 @@ public struct NextTransform: IComponentData
 public struct RelativeTransform : IComponentData
 {
     public float4x4 Value;
-    public float4x4 lastParentValue;
 }
 
 public struct ClosestNodes

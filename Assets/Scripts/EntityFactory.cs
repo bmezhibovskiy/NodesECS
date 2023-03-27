@@ -65,7 +65,7 @@ public struct EntityFactory
         float4x4 rotation = float4x4.RotateZ(math.radians(270));
         float4x4 initialTransform = math.mul(rotation, scale);
         ecb.AddComponent(sortKey, rocketDisplayChild, new LocalToWorld { Value = initialTransform });
-        ecb.AddComponent(sortKey, rocketDisplayChild, new RelativeTransform { Value = initialTransform, lastParentValue = translate });
+        ecb.AddComponent(sortKey, rocketDisplayChild, new RelativeTransform { Value = initialTransform });
         ecb.AddComponent(sortKey, rocketDisplayChild, new DestroyOnLevelUnload());
 
         return newRocket;
@@ -90,7 +90,7 @@ public struct EntityFactory
         Entity nodeDisplayChild = ecb.Instantiate(sortKey, prototypes.nodePrototype);
         ecb.AddComponent(sortKey, nodeDisplayChild, new Parent { Value = newNode });
         ecb.AddComponent(sortKey, nodeDisplayChild, new LocalToWorld { Value = transform });
-        ecb.AddComponent(sortKey, nodeDisplayChild, new RelativeTransform { Value = float4x4.identity, lastParentValue = transform });
+        ecb.AddComponent(sortKey, nodeDisplayChild, new RelativeTransform { Value = float4x4.identity });
         ecb.AddComponent(sortKey, nodeDisplayChild, new DestroyOnLevelUnload());
 
         return newNode;
@@ -111,7 +111,7 @@ public struct EntityFactory
         Entity nodeDisplayChild = em.Instantiate(prototypes.nodePrototype);
         em.AddComponentData(nodeDisplayChild, new Parent { Value = newNode });
         em.AddComponentData(nodeDisplayChild, new LocalToWorld { Value = transform });
-        em.AddComponentData(nodeDisplayChild, new RelativeTransform { Value = float4x4.identity, lastParentValue = transform });
+        em.AddComponentData(nodeDisplayChild, new RelativeTransform { Value = float4x4.identity });
         em.AddComponentData(nodeDisplayChild, new DestroyOnLevelUnload());
 
         return newNode;
@@ -124,7 +124,7 @@ public struct EntityFactory
 
         float4x4 transform = th.Transform(thrusterNumber, 1);
         ecb.AddComponent(sortKey, newThrust, new LocalToWorld { Value = math.mul(parentTransform, transform) });
-        ecb.AddComponent(sortKey, newThrust, new RelativeTransform { Value = transform, lastParentValue = parentTransform });
+        ecb.AddComponent(sortKey, newThrust, new RelativeTransform { Value = transform });
 
         ecb.AddComponent(sortKey, newThrust, new DestroyOnLevelUnload());
 

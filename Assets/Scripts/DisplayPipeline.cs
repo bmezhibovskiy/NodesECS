@@ -86,7 +86,7 @@ public class PartsRenderInfo
             }
             float4x4 transform = math.mul(anchorTransform, math.mul(rotationTransform, math.mul(scaleTransform, baseTransform)));
             em.AddComponentData(child, new LocalToWorld { Value = transform });
-            em.AddComponentData(child, new RelativeTransform { Value = transform, lastParentValue = em.GetComponentData<LocalToWorld>(parent).Value });
+            em.AddComponentData(child, new RelativeTransform { Value = transform });
             em.AddComponentData(child, new DestroyOnLevelUnload());
 
             RenderMeshDescription rmd = new RenderMeshDescription(ShadowCastingMode.On, true);

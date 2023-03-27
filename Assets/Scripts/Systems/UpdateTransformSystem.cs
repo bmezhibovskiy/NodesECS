@@ -1,6 +1,7 @@
 using System.Net.Sockets;
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Core;
 using Unity.Entities;
 using Unity.Mathematics;
@@ -116,21 +117,12 @@ public partial struct UpdateTransformsJob : IJobEntity
 }
 
 [BurstCompile]
-public partial struct PopulateParentTransformJob : IJobEntity
-{
-    [ReadOnly] public ComponentLookup<LocalToWorld> transformData;
-    void Execute(ref RelativeTransform rt, in Parent p)
-    {
-        rt.lastParentValue = transformData[p.Value].Value;
-    }
-}
-
-[BurstCompile]
 public partial struct UpdateChildTransformJob : IJobEntity
 {
-    void Execute(ref LocalToWorld transform, in RelativeTransform rt)
+    [NativeDisableContainerSafetyRestriction] [ReadOnly] public ComponentLookup<LocalToWorld> transformData;
+    void Execute(ref LocalToWorld transform, in RelativeTransform rt, in Parent p)
     {
-        transform.Value = math.mul(rt.lastParentValue, rt.Value);
+        transform.Value = math.mul(transformData[p.Value].Value, rt.Value);
     }
 }
 
@@ -168,9 +160,7 @@ public partial struct UpdateTransformSystem : ISystem
         dockedData.Update(ref systemState);
         shipData.Update(ref systemState);
 
-        systemState.Dependency = new PopulateParentTransformJob { transformData = transformData }.ScheduleParallel(systemState.Dependency);
-
-        systemState.Dependency = new UpdateChildTransformJob().ScheduleParallel(systemState.Dependency);
+        systemState.Dependency = new UpdateChildTransformJob { transformData = transformData }.ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new UpdateTransformsJob().ScheduleParallel(systemState.Dependency);
 
