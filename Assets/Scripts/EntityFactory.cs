@@ -49,7 +49,8 @@ public struct EntityFactory
         Entity newRocket = ecb.CreateEntity(sortKey);
         float4x4 translate = float4x4.Translate(pos);
         ecb.AddComponent(sortKey, newRocket, new LocalToWorld { Value = translate });
-        ecb.AddComponent(sortKey, newRocket, new Accelerating { prevPos = pos, accel = float3.zero, prevAccel = float3.zero, nodeOffset = float3.zero, vel = float3.zero });
+        //TODO: Should rockets be affected by grid nodes? Yes means interesting gameplay, no means better performance
+        ecb.AddComponent(sortKey, newRocket, new Accelerating { prevPos = pos, accel = float3.zero, prevAccel = float3.zero, vel = float3.zero });
         ecb.AddComponent(sortKey, newRocket, new NextTransform { nextPos = pos, scale = 1.0f, facing = facing });
         ecb.AddComponent(sortKey, newRocket, new ConstantThrust { thrust = facing * 10.1f });
         ecb.AddComponent(sortKey, newRocket, new WeaponShot { Shooter = shooter, size = 0.1f });

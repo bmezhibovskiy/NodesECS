@@ -263,7 +263,8 @@ public class Sector : MonoBehaviour
         ShipInfo info = shipInfos[name];
 
         em.AddComponentData(e, new NextTransform { facing = new float3(1, 0, 0), nextPos = pos, scale = 1f });
-        em.AddComponentData(e, new Accelerating { prevPos = pos, accel = float3.zero, prevAccel = float3.zero, vel = float3.zero, nodeOffset = float3.zero, closestNodes = ClosestNodes.empty }); ;
+        em.AddComponentData(e, new Accelerating { prevPos = pos, accel = float3.zero, prevAccel = float3.zero, vel = float3.zero }); ;
+        em.AddComponentData(e, new AffectedByNodes { nodeOffset = float3.zero, closestNodes = ClosestNodes.empty });
 
         Ship s = new Ship
         {

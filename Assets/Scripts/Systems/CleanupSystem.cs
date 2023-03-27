@@ -57,7 +57,6 @@ public partial struct DestroyAllEntitiesJob : IJobEntity
     }
 }
 
-//I don't think this really needs to be part of this group
 [UpdateInGroup(typeof(PresentationSystemGroup), OrderFirst = true)]
 [BurstCompile]
 public partial struct CleanupSystem : ISystem

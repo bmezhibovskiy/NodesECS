@@ -18,60 +18,13 @@ public partial struct UpdateConstantThrustJob: IJobEntity
 }
 
 [BurstCompile]
-public partial struct FindClosestNodesToAcceleratingJob : IJobEntity
-{
-    [ReadOnly] public ComponentLookup<LocalToWorld> transformData;
-    [ReadOnly] public ComponentLookup<GridNode> nodeData;
-    [ReadOnly] public NativeArray<Entity> nodes;
-
-    void Execute(ref Accelerating a, in NextTransform nt)
-    {
-        float3 aPos = nt.nextPos;
-        a.closestNodes = ClosestNodes.empty;
-
-        //Instead of just sorting the nodes array,
-        //It should be faster to just find the closest K nodes (currently 3)
-        //So, this algorithm has K*N iterations, where N is the total number of nodes
-        //Since K is very small, this has a O(N).
-        //Also, it doesn't require copying an entire array to sort it.
-
-        for (int i = 0; i < nodes.Length; ++i)
-        {
-            GridNode nodeComponent = nodeData[nodes[i]];
-            if (nodeComponent.isBorder) { continue; }
-
-            float3 nodePos = transformData[nodes[i]].Position;
-            float newSqMag = math.distancesq(nodePos, aPos);
-
-            for (int j = 0; j < ClosestNodes.numClosestNodes; ++j)
-            {
-                Entity currentClosest = a.closestNodes.Get(j);
-                if (!transformData.HasComponent(currentClosest))
-                {
-                    a.closestNodes.Set(nodes[i], j);
-                    break;
-                }
-
-                float3 currentPos = transformData[currentClosest].Position;
-                float currentSqMag = math.distancesq(currentPos, aPos);
-                if (newSqMag < currentSqMag)
-                {
-                    a.closestNodes.Set(nodes[i], j);
-                    break;
-                }
-            }
-        }
-        a.nodeOffset = aPos - a.AverageNodePos(transformData);
-    }
-}
-
-[BurstCompile]
 public partial struct IntegrateAcceleratingJob : IJobEntity
 {
     [ReadOnly] public TimeData timeData;
     [ReadOnly] public ComponentLookup<LocalToWorld> transformData;
     [ReadOnly] public ComponentLookup<Docked> dockedData;
     [ReadOnly] public ComponentLookup<Ship> shipData;
+    [ReadOnly] public ComponentLookup<AffectedByNodes> affectedByNodesData;
 
     void Execute(ref Accelerating a, ref NextTransform nt, in Entity e)
     {
@@ -91,11 +44,15 @@ public partial struct IntegrateAcceleratingJob : IJobEntity
         float dt = timeData.DeltaTime;
         float3 shipPos = nt.nextPos;
 
-        //Before integrating, we want to move the current position towards the grid point it's supposed to be at
-        //Since we're not updating the prevPos, this effectively increases velocity in the direction of that point
-        //That grid point is recalculated every frame in another job, so the difference is very small.
-        //This roughly achieves orbit-like mechanics, which moving the position (by updating prevPos) can't do.
-        float3 current = shipPos + (a.GridPosition(transformData) - shipPos) * dt;
+        float3 current = shipPos;
+        if (affectedByNodesData.HasComponent(e))
+        {
+            //Before integrating, we want to move the current position towards the grid point it's supposed to be at
+            //Since we're not updating the prevPos, this effectively increases velocity in the direction of that point
+            //That grid point is recalculated every frame in another job, so the difference is very small.
+            //This roughly achieves orbit-like mechanics, which moving the position (by updating prevPos) can't do.
+            current += (affectedByNodesData[e].GridPosition(transformData) - shipPos) * dt;
+        }
 
         nt.nextPos = 2 * current - a.prevPos + a.accel * (dt * dt);
         a.prevPos = current;
@@ -130,20 +87,18 @@ public partial struct UpdateChildTransformJob : IJobEntity
 public partial struct UpdateTransformSystem : ISystem
 {
     [ReadOnly] private ComponentLookup<LocalToWorld> transformData;
-    [ReadOnly] private ComponentLookup<GridNode> nodeData;
     [ReadOnly] public ComponentLookup<Docked> dockedData;
     [ReadOnly] public ComponentLookup<Ship> shipData;
+    [ReadOnly] public ComponentLookup<AffectedByNodes> affectedByNodesData;
 
-    private EntityQuery nodesQuery;
 
     [BurstCompile]
     public void OnCreate(ref SystemState systemState)
     {
-        transformData = SystemAPI.GetComponentLookup<LocalToWorld>();
-        nodeData = SystemAPI.GetComponentLookup<GridNode>();
-        dockedData = SystemAPI.GetComponentLookup<Docked>();
-        shipData = SystemAPI.GetComponentLookup<Ship>();
-        nodesQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<GridNode, LocalToWorld>().Build(ref systemState);
+        transformData = systemState.GetComponentLookup<LocalToWorld>();
+        dockedData = systemState.GetComponentLookup<Docked>();
+        shipData = systemState.GetComponentLookup<Ship>();
+        affectedByNodesData = systemState.GetComponentLookup<AffectedByNodes>();
     }
 
     [BurstCompile]
@@ -156,9 +111,9 @@ public partial struct UpdateTransformSystem : ISystem
     public void OnUpdate(ref SystemState systemState)
     {
         transformData.Update(ref systemState);
-        nodeData.Update(ref systemState);
         dockedData.Update(ref systemState);
         shipData.Update(ref systemState);
+        affectedByNodesData.Update(ref systemState);
 
         systemState.Dependency = new UpdateChildTransformJob { transformData = transformData }.ScheduleParallel(systemState.Dependency);
 
@@ -166,10 +121,6 @@ public partial struct UpdateTransformSystem : ISystem
 
         systemState.Dependency = new UpdateConstantThrustJob().ScheduleParallel(systemState.Dependency);
 
-        systemState.Dependency = new IntegrateAcceleratingJob { timeData = SystemAPI.Time, transformData = transformData, dockedData = dockedData, shipData = shipData }.ScheduleParallel(systemState.Dependency);
-
-        NativeArray<Entity> nodes = nodesQuery.ToEntityArray(systemState.WorldUpdateAllocator);
-
-        systemState.Dependency = new FindClosestNodesToAcceleratingJob { transformData = transformData, nodes = nodes, nodeData = nodeData }.ScheduleParallel(systemState.Dependency);
+        systemState.Dependency = new IntegrateAcceleratingJob { timeData = SystemAPI.Time, transformData = transformData, dockedData = dockedData, shipData = shipData, affectedByNodesData = affectedByNodesData }.ScheduleParallel(systemState.Dependency);
     }
 }

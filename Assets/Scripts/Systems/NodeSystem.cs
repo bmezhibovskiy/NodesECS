@@ -137,14 +137,64 @@ public partial struct UpdateNodeTransformsJob: IJobEntity
 }
 
 [BurstCompile]
+public partial struct FindClosestNodesJob : IJobEntity
+{
+    [ReadOnly] public ComponentLookup<LocalToWorld> transformData;
+    [ReadOnly] public ComponentLookup<GridNode> nodeData;
+    [ReadOnly] public NativeArray<Entity> nodes;
+
+    void Execute(ref AffectedByNodes a, in NextTransform nt)
+    {
+        float3 aPos = nt.nextPos;
+        a.closestNodes = ClosestNodes.empty;
+
+        //Instead of just sorting the nodes array,
+        //It should be faster to just find the closest K nodes (currently 3)
+        //So, this algorithm has K*N iterations, where N is the total number of nodes
+        //Since K is very small, this has a O(N).
+        //Also, it doesn't require copying an entire array to sort it.
+
+        for (int i = 0; i < nodes.Length; ++i)
+        {
+            GridNode nodeComponent = nodeData[nodes[i]];
+            if (nodeComponent.isBorder) { continue; }
+
+            float3 nodePos = transformData[nodes[i]].Position;
+            float newSqMag = math.distancesq(nodePos, aPos);
+
+            for (int j = 0; j < ClosestNodes.numClosestNodes; ++j)
+            {
+                Entity currentClosest = a.closestNodes.Get(j);
+                if (!transformData.HasComponent(currentClosest))
+                {
+                    a.closestNodes.Set(nodes[i], j);
+                    break;
+                }
+
+                float3 currentPos = transformData[currentClosest].Position;
+                float currentSqMag = math.distancesq(currentPos, aPos);
+                if (newSqMag < currentSqMag)
+                {
+                    a.closestNodes.Set(nodes[i], j);
+                    break;
+                }
+            }
+        }
+        a.nodeOffset = aPos - a.AverageNodePos(transformData);
+    }
+}
+
+[BurstCompile]
 public partial struct NodeSystem : ISystem
 {
     [ReadOnly] private ComponentLookup<LocalToWorld> transformData;
     [ReadOnly] private ComponentLookup<Station> stationData;
     [ReadOnly] private ComponentLookup<Ship> shipData;
+    [ReadOnly] private ComponentLookup<GridNode> nodeData;
 
     private EntityQuery stationQuery;
     private EntityQuery shipQuery;
+    private EntityQuery nodesQuery;
 
     [BurstCompile]
     public void OnCreate(ref SystemState systemState)
@@ -152,9 +202,11 @@ public partial struct NodeSystem : ISystem
         transformData = systemState.GetComponentLookup<LocalToWorld>();
         stationData = systemState.GetComponentLookup<Station>();
         shipData = systemState.GetComponentLookup<Ship>();
+        nodeData = systemState.GetComponentLookup<GridNode>();
 
         stationQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<Station, LocalToWorld>().Build(ref systemState);
         shipQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<Ship, LocalToWorld>().Build(ref systemState);
+        nodesQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<GridNode, LocalToWorld>().Build(ref systemState);
     }
 
     [BurstCompile]
@@ -169,19 +221,24 @@ public partial struct NodeSystem : ISystem
         transformData.Update(ref systemState);
         stationData.Update(ref systemState);
         shipData.Update(ref systemState);
+        nodeData.Update(ref systemState);
 
         EndSimulationEntityCommandBufferSystem.Singleton ecbSystem = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>();
         
         NativeArray<Entity> stations = stationQuery.ToEntityArray(systemState.WorldUpdateAllocator);
         NativeArray<Entity> ships = shipQuery.ToEntityArray(systemState.WorldUpdateAllocator);
+        NativeArray<Entity> nodes = nodesQuery.ToEntityArray(systemState.WorldUpdateAllocator);
 
         systemState.Dependency = new ResetNodeVelocitiesJob().ScheduleParallel(systemState.Dependency);
+
+        systemState.Dependency = new FindClosestNodesJob { transformData = transformData, nodes = nodes, nodeData = nodeData }.ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new UpdateNodesWithStationsJob { stationEntities = stations, transformData = transformData, stationData = stationData, ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new UpdateNodesWithShipsJob { shipEntities = ships, shipData = shipData, transformData = transformData, ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new UpdateNodeTransformsJob { timeData = SystemAPI.Time }.ScheduleParallel(systemState.Dependency);
+        
     }
 
 }
