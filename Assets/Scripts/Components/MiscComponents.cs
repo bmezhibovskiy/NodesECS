@@ -7,11 +7,6 @@ public struct DestroyOnLevelUnload : IComponentData
 
 }
 
-public struct InitialTransform: IComponentData
-{
-    public float4x4 Value;
-}
-
 public struct NextTransform: IComponentData
 {
     public float3 facing;

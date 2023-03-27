@@ -103,13 +103,13 @@ public class Sector : MonoBehaviour
         {
             Entity entity = entities[i];
             NeedsDestroy nd = em.GetComponentData<NeedsDestroy>(entity);
-            if (nd.destroyTime < Time.time && nd.explosionShowed == false)
+            if (nd.destroyTime < Time.time && nd.confirmDestroy == false)
             {
                 LocalToWorld ltw = em.GetComponentData<LocalToWorld>(entity);
                 float maxTime = Time.time + 0.6f * explosionSize; //Bigger explosion lasts longer.
                 explosionManager.AddExplosion(ltw.Position, mainCamera, explosionSize, maxTime);
                 Globals.sharedEntityFactory.Data.CreateAOENow(em, ltw.Position, explosionSize, maxTime);
-                em.SetComponentData<NeedsDestroy>(entity, new NeedsDestroy { destroyTime = nd.destroyTime, explosionShowed = true });
+                em.SetComponentData<NeedsDestroy>(entity, new NeedsDestroy { destroyTime = nd.destroyTime, confirmDestroy = true });
             }
         }
     }

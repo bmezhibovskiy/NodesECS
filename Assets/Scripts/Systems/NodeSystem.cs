@@ -2,7 +2,6 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Core;
 using Unity.Entities;
-using Unity.Entities.UniversalDelegates;
 using Unity.Jobs;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -26,7 +25,7 @@ public partial struct UpdateNodesWithShipsJob : IJobEntity
 
     void Execute(ref GridNode gridNode, in LocalToWorld t, Entity e, [EntityIndexInQuery] int entityInQueryIndex)
     {
-        if (gridNode.isDead || gridNode.isBorder) { return; }
+        if (gridNode.isBorder) { return; }
 
         float3 pos = t.Position;
         for(int i = 0; i < shipEntities.Length; ++i)
@@ -46,7 +45,7 @@ public partial struct UpdateNodesWithShipsJob : IJobEntity
 
             if (distSq < ship.size * ship.size)
             {
-                gridNode.isDead = true;
+                ecb.AddComponent(entityInQueryIndex, e, NeedsDestroy.Now);
 
                 ship.hyperspaceNodesGathered += 1;
                 ecb.SetComponent(entityInQueryIndex, shipEntity, ship);
@@ -69,9 +68,10 @@ public partial struct UpdateNodesWithStationsJob: IJobEntity
     [ReadOnly] public NativeArray<Entity> stationEntities;
     [ReadOnly] public ComponentLookup<LocalToWorld> transformData;
     [ReadOnly] public ComponentLookup<Station> stationData;
-    void Execute(ref GridNode gridNode, in Entity e)
+    public EntityCommandBuffer.ParallelWriter ecb;
+    void Execute(ref GridNode gridNode, in Entity e, [EntityIndexInQuery] int entityInQueryIndex)
     {
-        if (gridNode.isBorder || gridNode.isDead) { return; }
+        if (gridNode.isBorder) { return; }
 
         float3 nodePos = transformData[e].Position;
 
@@ -103,8 +103,7 @@ public partial struct UpdateNodesWithStationsJob: IJobEntity
                     case StationModuleType.NodeEater:
                         if (distSq < station.size * station.size)
                         {
-                            gridNode.isDead = true;
-                            break;
+                            ecb.AddComponent(entityInQueryIndex, e, NeedsDestroy.Now);
                         }
                         break;
                     default:
@@ -122,7 +121,7 @@ public partial struct UpdateNodeTransformsJob: IJobEntity
     [ReadOnly] public TimeData timeData;
     void Execute(ref LocalToWorld transform, in GridNode gridNode)
     {
-        if(gridNode.isBorder || gridNode.isDead) { return; }
+        if(gridNode.isBorder) { return; }
 
         float defaultScale = Globals.sharedLevelInfo.Data.nodeSize;
         float stretchX = math.length(gridNode.velocity) * 30f;
@@ -134,19 +133,6 @@ public partial struct UpdateNodeTransformsJob: IJobEntity
         float4x4 translation = float4x4.Translate(transform.Position + gridNode.velocity);
 
         transform.Value = math.mul(translation, math.mul(rotation, scale));
-    }
-}
-
-[BurstCompile]
-public partial struct RemoveDeadNodesJob: IJobEntity
-{
-    public EntityCommandBuffer.ParallelWriter ecb;
-    void Execute(in Entity e, [EntityIndexInQuery] int entityInQueryIndex, in GridNode gridNode)
-    {
-        if (gridNode.isDead)
-        {
-            ecb.DestroyEntity(entityInQueryIndex, e);
-        }
     }
 }
 
@@ -191,13 +177,11 @@ public partial struct NodeSystem : ISystem
 
         systemState.Dependency = new ResetNodeVelocitiesJob().ScheduleParallel(systemState.Dependency);
 
-        systemState.Dependency = new UpdateNodesWithStationsJob { stationEntities = stations, transformData = transformData, stationData = stationData }.ScheduleParallel(systemState.Dependency);
+        systemState.Dependency = new UpdateNodesWithStationsJob { stationEntities = stations, transformData = transformData, stationData = stationData, ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new UpdateNodesWithShipsJob { shipEntities = ships, shipData = shipData, transformData = transformData, ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new UpdateNodeTransformsJob { timeData = SystemAPI.Time }.ScheduleParallel(systemState.Dependency);
-
-        systemState.Dependency = new RemoveDeadNodesJob { ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
     }
 
 }

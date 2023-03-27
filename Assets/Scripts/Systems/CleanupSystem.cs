@@ -8,10 +8,12 @@ using UnityEngine;
 
 public struct NeedsDestroy: IComponentData
 {
+    public readonly static NeedsDestroy Now = new NeedsDestroy { destroyTime = 0, confirmDestroy = true };
     public double destroyTime;
-    public bool explosionShowed;
+    public bool confirmDestroy;
 }
 
+//This job should be near all the other accelerating jobs, not in this system
 [BurstCompile]
 public partial struct ClearAccelerationJob : IJobEntity
 {
@@ -31,7 +33,7 @@ public partial struct DestroyNeededEntitiesJob : IJobEntity
     public EntityCommandBuffer.ParallelWriter ecb;
     void Execute(in NeedsDestroy nd, in Entity e, [EntityIndexInQuery] int entityInQueryIndex)
     {
-        if (timeData.ElapsedTime < nd.destroyTime || nd.explosionShowed == false) { return; }
+        if (timeData.ElapsedTime < nd.destroyTime || nd.confirmDestroy == false) { return; }
 
         for(int i = 0; i < entitiesThatHaveParents.Length; ++i)
         {
@@ -55,6 +57,7 @@ public partial struct DestroyAllEntitiesJob : IJobEntity
     }
 }
 
+//I don't think this really needs to be part of this group
 [UpdateInGroup(typeof(PresentationSystemGroup), OrderFirst = true)]
 [BurstCompile]
 public partial struct CleanupSystem : ISystem
