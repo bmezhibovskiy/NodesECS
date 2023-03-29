@@ -106,7 +106,7 @@ public class Sector : MonoBehaviour
             if (nd.destroyTime < Time.time && nd.confirmDestroy == false)
             {
                 LocalToWorld ltw = em.GetComponentData<LocalToWorld>(entity);
-                float maxTime = Time.time + 0.6f * explosionSize; //Bigger explosion lasts longer.
+                float maxTime = Time.time + 0.8f * explosionSize; //Bigger explosion lasts longer.
                 explosionManager.AddExplosion(ltw.Position, mainCamera, explosionSize, maxTime);
                 Globals.sharedEntityFactory.Data.CreateAOENow(em, ltw.Position, explosionSize, maxTime);
                 em.SetComponentData<NeedsDestroy>(entity, new NeedsDestroy { destroyTime = nd.destroyTime, confirmDestroy = true });

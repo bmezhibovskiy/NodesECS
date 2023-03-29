@@ -77,8 +77,8 @@ public class ExplosionManager : MonoBehaviour
 
         Light light = newLight.AddComponent<Light>();
         light.type = LightType.Point;
-        light.intensity = size * 8000.0f;
-        light.colorTemperature = 3000.0f;
+        light.intensity = size * 5000.0f;
+        light.colorTemperature = 2700.0f;
         light.useColorTemperature = true;
 
         return newLight;
@@ -86,10 +86,10 @@ public class ExplosionManager : MonoBehaviour
 
     private void AddExplosionShockwave(Vector3 worldPos, Camera camera, float size, float maxTime)
     {
-        float speed = 0.8f * size;
-        float gauge = 0.3f / size; //Bigger explosion is thicker
-        float intensity = 2.0f * size; //Bigger explosion is more intense
-        float decaySpeed = 1.0f / size; //Bigger explosion decays slower
+        float speed = 1.1f * size;
+        float gauge = 0.2f / size; //Bigger explosion is thicker
+        float intensity = 3.0f * size; //Bigger explosion is more intense
+        float decaySpeed = 0.8f / size; //Bigger explosion decays slower
 
         shockwaveManager.AddShockwave(worldPos, camera, speed, maxTime, gauge, intensity, decaySpeed);
     }
@@ -137,7 +137,7 @@ public class ExplosionManager : MonoBehaviour
                 default:
                     break;
             }
-            explosion.lightObject.GetComponent<Light>().intensity *= 0.7f;
+            explosion.lightObject.GetComponent<Light>().intensity *= 0.8f;
         }
         explosions.RemoveAll(explosion => curTime > explosion.maxTime);
             
