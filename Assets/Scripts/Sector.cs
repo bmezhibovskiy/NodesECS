@@ -107,8 +107,9 @@ public class Sector : MonoBehaviour
             {
                 LocalToWorld ltw = em.GetComponentData<LocalToWorld>(entity);
                 float maxTime = Time.time + 0.8f * explosionSize; //Bigger explosion lasts longer.
+                float maxAOETime = Time.time + 0.2f * explosionSize;// AOE effect doesn't last as long as the art
                 explosionManager.AddExplosion(ltw.Position, mainCamera, explosionSize, maxTime);
-                Globals.sharedEntityFactory.Data.CreateAOENow(em, ltw.Position, explosionSize, maxTime);
+                Globals.sharedEntityFactory.Data.CreateAOENow(em, ltw.Position, explosionSize, maxAOETime);
                 em.SetComponentData<NeedsDestroy>(entity, new NeedsDestroy { destroyTime = nd.destroyTime, confirmDestroy = true });
             }
         }

@@ -128,7 +128,7 @@ public class ExplosionManager : MonoBehaviour
                     }
                     break;
                 case 2:
-                    if (curTime > explosion.startTime + 0.24f)
+                    if (curTime > explosion.startTime + 0.2f)
                     {
                         explosion.explosionObject = AddExplosionObject(explosion.pos, explosion.size);
                         explosion.phase = 3;

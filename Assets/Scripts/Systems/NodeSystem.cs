@@ -185,16 +185,40 @@ public partial struct FindClosestNodesJob : IJobEntity
 }
 
 [BurstCompile]
+public partial struct AOEAffectNodeJob : IJobEntity
+{
+    [ReadOnly] public TimeData timeData;
+    [ReadOnly] public NativeArray<Entity> aoeEntities;
+    [ReadOnly] public ComponentLookup<AreaOfEffect> aoeData;
+    [ReadOnly] public ComponentLookup<LocalToWorld> transformData;
+    void Execute(ref GridNode node, in Entity e)
+    {
+        float3 pos = transformData[e].Position;
+        for (int i = 0; i < aoeEntities.Length; ++i)
+        {
+            Entity aoeEntity = aoeEntities[i];
+            float r = aoeData[aoeEntity].radius;
+            float3 c = transformData[aoeEntity].Position;
+            float3 distVec = pos - c;
+            float dist = math.length(distVec);
+            node.velocity += 0.04f * distVec / math.pow(dist, 3);
+        }
+    }
+}
+
+[BurstCompile]
 public partial struct NodeSystem : ISystem
 {
     [ReadOnly] private ComponentLookup<LocalToWorld> transformData;
     [ReadOnly] private ComponentLookup<Station> stationData;
     [ReadOnly] private ComponentLookup<Ship> shipData;
     [ReadOnly] private ComponentLookup<GridNode> nodeData;
+    [ReadOnly] private ComponentLookup<AreaOfEffect> aoeData;
 
     private EntityQuery stationQuery;
     private EntityQuery shipQuery;
     private EntityQuery nodesQuery;
+    private EntityQuery aoeQuery;
 
     [BurstCompile]
     public void OnCreate(ref SystemState systemState)
@@ -203,10 +227,12 @@ public partial struct NodeSystem : ISystem
         stationData = systemState.GetComponentLookup<Station>();
         shipData = systemState.GetComponentLookup<Ship>();
         nodeData = systemState.GetComponentLookup<GridNode>();
+        aoeData = SystemAPI.GetComponentLookup<AreaOfEffect>();
 
         stationQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<Station, LocalToWorld>().Build(ref systemState);
         shipQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<Ship, LocalToWorld>().Build(ref systemState);
         nodesQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<GridNode, LocalToWorld>().Build(ref systemState);
+        aoeQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<AreaOfEffect, LocalToWorld>().Build(ref systemState);
     }
 
     [BurstCompile]
@@ -222,16 +248,20 @@ public partial struct NodeSystem : ISystem
         stationData.Update(ref systemState);
         shipData.Update(ref systemState);
         nodeData.Update(ref systemState);
+        aoeData.Update(ref systemState);
 
         EndSimulationEntityCommandBufferSystem.Singleton ecbSystem = SystemAPI.GetSingleton<EndSimulationEntityCommandBufferSystem.Singleton>();
         
         NativeArray<Entity> stations = stationQuery.ToEntityArray(systemState.WorldUpdateAllocator);
         NativeArray<Entity> ships = shipQuery.ToEntityArray(systemState.WorldUpdateAllocator);
         NativeArray<Entity> nodes = nodesQuery.ToEntityArray(systemState.WorldUpdateAllocator);
+        NativeArray<Entity> aoeEntities = aoeQuery.ToEntityArray(systemState.WorldUpdateAllocator);
 
         systemState.Dependency = new ResetNodeVelocitiesJob().ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new FindClosestNodesJob { transformData = transformData, nodes = nodes, nodeData = nodeData }.ScheduleParallel(systemState.Dependency);
+
+        systemState.Dependency = new AOEAffectNodeJob { timeData = SystemAPI.Time, aoeEntities = aoeEntities, transformData = transformData, aoeData = aoeData }.ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new UpdateNodesWithStationsJob { stationEntities = stations, transformData = transformData, stationData = stationData, ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
 
