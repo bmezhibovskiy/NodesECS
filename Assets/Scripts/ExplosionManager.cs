@@ -2,6 +2,7 @@ using com.borismez.ShockwavesHDRP;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering.PostProcessing;
 
 public class ExplosionManager : MonoBehaviour
 {
@@ -17,9 +18,38 @@ public class ExplosionManager : MonoBehaviour
     [SerializeField]
     ShockwaveManager shockwaveManager;
 
-    private Dictionary<float, GameObject> explosions = new Dictionary<float, GameObject>();
+    private class Explosion
+    {
+        public Camera camera;
+        public float maxTime;
+        public float size;
+        public Vector3 pos;
+        public GameObject lightObject;
+        public GameObject explosionObject;
+        public float startTime;
+        public int phase;
+        public Explosion(Camera camera, float maxTime, float size, Vector3 pos)
+        {
+            this.camera = camera;
+            this.maxTime = maxTime;
+            this.size = size;
+            this.pos = pos;
+            this.lightObject = null;
+            this.explosionObject = null;
+            this.startTime = Time.time;
+            this.phase = 0;
+        }
+    }
 
-    public GameObject AddExplosion(Vector3 worldPos, Camera camera, float size, float maxTime)
+
+    private List<Explosion> explosions = new List<Explosion>();
+
+    public void AddExplosion(Vector3 worldPos, Camera camera, float size, float maxTime)
+    {
+        explosions.Add(new Explosion(camera, maxTime, size, worldPos));
+    }
+
+    private GameObject AddExplosionObject(Vector3 worldPos, float size)
     {
         float scale = size + 0.5f;
         GameObject ExplosionPrefab = ExplosionPrefabSmall;
@@ -35,17 +65,33 @@ public class ExplosionManager : MonoBehaviour
             scale = size - 1.5f;
         }
 
+        GameObject newExplosion = Instantiate(ExplosionPrefab, worldPos, Quaternion.identity);
+        newExplosion.transform.localScale = Vector3.one * scale;
+        return newExplosion;
+    }
 
+    private GameObject AddLightObject(Vector3 worldPos, float size)
+    {
+        GameObject newLight = new GameObject("ExplosionLightObject");
+        newLight.transform.position = worldPos;
+
+        Light light = newLight.AddComponent<Light>();
+        light.type = LightType.Point;
+        light.intensity = size * 8000.0f;
+        light.colorTemperature = 3000.0f;
+        light.useColorTemperature = true;
+
+        return newLight;
+    }
+
+    private void AddExplosionShockwave(Vector3 worldPos, Camera camera, float size, float maxTime)
+    {
         float speed = 0.8f * size;
         float gauge = 0.3f / size; //Bigger explosion is thicker
         float intensity = 2.0f * size; //Bigger explosion is more intense
         float decaySpeed = 1.0f / size; //Bigger explosion decays slower
 
         shockwaveManager.AddShockwave(worldPos, camera, speed, maxTime, gauge, intensity, decaySpeed);
-        GameObject newExplosion = Instantiate(ExplosionPrefab, worldPos, Quaternion.identity);
-        newExplosion.transform.localScale = Vector3.one * scale;
-        explosions[maxTime] = newExplosion;
-        return newExplosion;
     }
 
     // Start is called before the first frame update
@@ -58,19 +104,42 @@ public class ExplosionManager : MonoBehaviour
     void Update()
     {
         float curTime = Time.time;
-        List<float> toRemove = new List<float>();
-        foreach (KeyValuePair<float, GameObject> pair in explosions)
+
+        foreach(Explosion explosion in explosions)
         {
-            if (pair.Key < curTime)
+            if(curTime > explosion.maxTime)
             {
-                toRemove.Add(pair.Key);
-                Destroy(pair.Value);
+                Destroy(explosion.lightObject);
+                Destroy(explosion.explosionObject);
+                continue;
             }
+
+            switch (explosion.phase)
+            {
+                case 0:
+                    explosion.lightObject = AddLightObject(explosion.pos, explosion.size);
+                    explosion.phase = 1;
+                    break;
+                case 1:
+                    if(curTime > explosion.startTime + 0.1f)
+                    {
+                        AddExplosionShockwave(explosion.pos, explosion.camera, explosion.size, explosion.maxTime);
+                        explosion.phase = 2;
+                    }
+                    break;
+                case 2:
+                    if (curTime > explosion.startTime + 0.24f)
+                    {
+                        explosion.explosionObject = AddExplosionObject(explosion.pos, explosion.size);
+                        explosion.phase = 3;
+                    }
+                    break;
+                default:
+                    break;
+            }
+            explosion.lightObject.GetComponent<Light>().intensity *= 0.7f;
         }
-        foreach (float key in toRemove)
-        {
-            explosions.Remove(key);
-        }
+        explosions.RemoveAll(explosion => curTime > explosion.maxTime);
             
     }
 }
