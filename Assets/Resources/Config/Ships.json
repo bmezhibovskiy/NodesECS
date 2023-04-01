@@ -72,6 +72,52 @@
                     }
                 ]
             }
+        },
+        {
+            "name": "Zov",
+            "maxThrust": 2.0,
+            "jerk": 400.0,
+            "rotationSpeed": 4.0,
+            "displayInfo": {
+                "initialScale": 0.4,
+                "initialRotationDegrees": {
+                    "x": 90,
+                    "y": 0,
+                    "z": 180
+                },
+                "anchor": {
+                    "x": -0.18,
+                    "y": 0,
+                    "z": 0
+                },
+                "path": "Art/Ships/AlienLarge",
+                "meshBundle": "AlienLarge_Ship",
+                "parts": [
+                    {
+                        "mesh": "Inner Engine Spikes",
+                        "material": "Inner Engine Spikes"
+                    },
+                    {
+                        "mesh": "Launcher Details",
+                        "material": "Launcher Details"
+                    },
+                    {
+                        "mesh": "Outer Engine Spikes",
+                        "material": "Outer Engine Spikes"
+                    },
+                    {
+                        "mesh": "Ship Base",
+                        "material": "Ship Base"
+                    },
+                    {
+                        "mesh": "Side Hulls",
+                        "material": "Side Hulls"
+                    }
+                ],
+                "lights": [
+
+                ]
+            }
         }
     ]
 }
