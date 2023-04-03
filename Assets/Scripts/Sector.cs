@@ -74,7 +74,7 @@ public class Sector : MonoBehaviour
         {
             AddStation(si.name, si.type, si.position, si.size, si.factionIndex, si.moduleInfos);
         }
-        this.playerEntity = AddShip("Zov", this.startPos, true);
+        this.playerEntity = AddShip("Scaphe", this.startPos, true);
         AddShip("Zov", new float3(-4,1,0), false);
 
         needExplosionEntityQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<NeedsDestroy>().Build(em);
