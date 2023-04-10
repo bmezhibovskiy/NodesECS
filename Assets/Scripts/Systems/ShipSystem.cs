@@ -240,7 +240,8 @@ public partial struct AOEAffectShipJob : IJobEntity
     [ReadOnly] public NativeArray<Entity> aoeEntities;
     [ReadOnly] public ComponentLookup<AreaOfEffect> aoeData;
     [ReadOnly] public ComponentLookup<LocalToWorld> transformData;
-    void Execute(ref Accelerating ac, in Entity e)
+    public EntityCommandBuffer.ParallelWriter ecb;
+    void Execute(ref Accelerating ac, in Entity e, [EntityIndexInQuery] int entityInQueryIndex)
     {
         float3 pos = transformData[e].Position;
         for(int i = 0; i < aoeEntities.Length; ++i)
@@ -249,9 +250,11 @@ public partial struct AOEAffectShipJob : IJobEntity
             float r = aoeData[aoeEntity].radius;
             float3 c = transformData[aoeEntity].Position;
             float distSq = math.distancesq(pos, c);
-            if(distSq < r * r)
+            if(distSq < r * r && ac.beingHitUntil < timeData.ElapsedTime)
             {
+                ac.beingHitUntil = timeData.ElapsedTime + 1.5;
                 ac.accel += 100f * math.normalize(pos - c);
+                Globals.sharedEntityFactory.Data.CreateShieldHitAsync(entityInQueryIndex, ecb, ac.beingHitUntil, e, transformData[e].Value);
             }
         }
     }
@@ -305,7 +308,7 @@ public partial struct ShipSystem : ISystem
 
         systemState.Dependency = new UpdatePlayerShipJob { timeData = SystemAPI.Time }.ScheduleParallel(systemState.Dependency);
 
-        systemState.Dependency = new AOEAffectShipJob { timeData = SystemAPI.Time, aoeEntities = aoeEntities, transformData = transformData, aoeData = aoeData }.ScheduleParallel(systemState.Dependency);
+        systemState.Dependency = new AOEAffectShipJob { timeData = SystemAPI.Time, aoeEntities = aoeEntities, transformData = transformData, aoeData = aoeData, ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
 
         systemState.Dependency = new ShootWeaponsJob { timeData = SystemAPI.Time, ecb = ecbSystem.CreateCommandBuffer(systemState.WorldUnmanaged).AsParallelWriter() }.ScheduleParallel(systemState.Dependency);
 

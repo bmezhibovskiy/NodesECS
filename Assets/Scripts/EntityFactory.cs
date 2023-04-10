@@ -12,47 +12,44 @@ using UnityEngine.Rendering.HighDefinition;
 
 public struct EntityFactory
 {
-    public enum EntityType
-    {
-        Node, Rocket1, Thrust1
-    }
-
     private struct Prototypes
     {
         public Entity nodePrototype;
         public Entity rocket1Prototype;
         public Entity thrust1Prototype;
+        public Entity shieldHitPrototype;
     }
     private Prototypes prototypes;
 
     public void SetUpPrototypes(EntityManager em)
     {
-        RenderMeshDescription rmd = new RenderMeshDescription(ShadowCastingMode.Off, false);
+        RenderMeshDescription rmdNoShadows = new RenderMeshDescription(ShadowCastingMode.Off, false);
+        RenderMeshDescription rmdShadows = new RenderMeshDescription(ShadowCastingMode.On, true);
         MaterialMeshInfo mmi = MaterialMeshInfo.FromRenderMeshArrayIndices(0, 0);
 
         prototypes.nodePrototype = em.CreateEntity();
-        
         Material nodeMaterial = Resources.Load<Material>("Art/Misc/NodeMaterial");
         Mesh nodeMesh = Resources.Load<Mesh>("Art/Misc/Sphere");
-
         RenderMeshArray renderMeshArray = new RenderMeshArray(new Material[] { nodeMaterial }, new Mesh[] { nodeMesh });
-        RenderMeshUtility.AddComponents(prototypes.nodePrototype, em, rmd, renderMeshArray, mmi);
-
+        RenderMeshUtility.AddComponents(prototypes.nodePrototype, em, rmdNoShadows, renderMeshArray, mmi);
 
         prototypes.rocket1Prototype = em.CreateEntity();
-
         Material rocket1Material = Resources.Load<Material>("Art/Misc/RocketsPalletteRed");
         Mesh rocket1Mesh = Resources.Load<Mesh>("Art/Misc/Rocket01");
-
         RenderMeshArray renderMeshArray2 = new RenderMeshArray(new Material[] { rocket1Material }, new Mesh[] { rocket1Mesh });
-        RenderMeshUtility.AddComponents(prototypes.rocket1Prototype, em, rmd, renderMeshArray2, mmi);
-
+        RenderMeshUtility.AddComponents(prototypes.rocket1Prototype, em, rmdShadows, renderMeshArray2, mmi);
 
         prototypes.thrust1Prototype = em.CreateEntity();
         Material thrust1Material = Resources.Load<Material>("Art/Misc/FireThrustMaterial");
         Mesh thrust1Mesh = Resources.Load<Mesh>("Art/Misc/uncappedCylinder");
         RenderMeshArray renderMeshArray3 = new RenderMeshArray(new Material[] { thrust1Material }, new Mesh[] { thrust1Mesh });
-        RenderMeshUtility.AddComponents(prototypes.thrust1Prototype, em, rmd, renderMeshArray3, mmi);
+        RenderMeshUtility.AddComponents(prototypes.thrust1Prototype, em, rmdNoShadows, renderMeshArray3, mmi);
+
+        prototypes.shieldHitPrototype = em.CreateEntity();
+        Material shieldHitMaterial = Resources.Load<Material>("Art/Misc/ShieldHitMaterial");
+        Mesh shieldHitMesh = Resources.Load<Mesh>("Art/Misc/Sphere");
+        RenderMeshArray renderMeshArray4 = new RenderMeshArray(new Material[] { shieldHitMaterial }, new Mesh[] { shieldHitMesh });
+        RenderMeshUtility.AddComponents(prototypes.shieldHitPrototype, em, rmdNoShadows, renderMeshArray4, mmi);
     }
 
     public Entity CreateRocket1Async(int sortKey, Entity shooter, EntityCommandBuffer.ParallelWriter ecb, float3 pos, float3 facing, double elapsedTime)
@@ -152,5 +149,19 @@ public struct EntityFactory
         em.AddComponentData(e, new NeedsDestroy { destroyTime = maxTime, confirmDestroy = true });
         em.AddComponentData(e, new DestroyOnLevelUnload());
         return e;
+    }
+
+    public Entity CreateShieldHitAsync(int sortKey, EntityCommandBuffer.ParallelWriter ecb, double maxTime, Entity parent, float4x4 parentTransform)
+    {
+        Entity newShieldHit = ecb.Instantiate(sortKey, prototypes.shieldHitPrototype);
+        ecb.AddComponent(sortKey, newShieldHit, new Parent { Value = parent });
+
+        float4x4 transform = float4x4.Scale(2.0f);
+        ecb.AddComponent(sortKey, newShieldHit, new LocalToWorld { Value = math.mul(parentTransform, transform) });
+        ecb.AddComponent(sortKey, newShieldHit, new RelativeTransform { Value = transform });
+
+        ecb.AddComponent(sortKey, newShieldHit, new NeedsDestroy { destroyTime = maxTime, confirmDestroy = true });
+        ecb.AddComponent(sortKey, newShieldHit, new DestroyOnLevelUnload());
+        return newShieldHit;
     }
 }

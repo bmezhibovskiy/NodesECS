@@ -31,6 +31,8 @@ public struct Accelerating: IComponentData
     public float3 accel;
     public float3 vel;
     public double accelStartedAt;
+    //TODO: Put this in a different component
+    public double beingHitUntil;
 
     public void HandleCollisionAt(float3 collisionPos, float3 normal, float bounciness = 0.5f)
     {
