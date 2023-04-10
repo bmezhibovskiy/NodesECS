@@ -75,6 +75,9 @@ public class GameManager : MonoBehaviour
     [SerializeField]
     ExplosionManager explosionManager;
 
+    [SerializeField]
+    GameObject minimapLight;
+
     ShipInfos shipInfos;
     StationTypeInfos stationTypeInfos;
 
@@ -82,8 +85,21 @@ public class GameManager : MonoBehaviour
 
     GameObject mapObject;
 
+
+    void OnBeginCameraRendering(ScriptableRenderContext context, Camera camera)
+    {
+        //TODO: compare against minimap camera instead, in case we ever add other cameras
+        minimapLight.SetActive(camera != mainCamera);
+    }
+
+    void OnDestroy()
+    {
+        RenderPipelineManager.beginCameraRendering -= OnBeginCameraRendering;
+    }
+
     void Start()
     {
+        RenderPipelineManager.beginCameraRendering += OnBeginCameraRendering;
 
         GraphicsSettings.useScriptableRenderPipelineBatching = true;
 
