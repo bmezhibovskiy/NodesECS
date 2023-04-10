@@ -31,7 +31,7 @@ public struct EntityFactory
         Material nodeMaterial = Resources.Load<Material>("Art/Misc/NodeMaterial");
         Mesh nodeMesh = Resources.Load<Mesh>("Art/Misc/Sphere");
         RenderMeshArray renderMeshArray = new RenderMeshArray(new Material[] { nodeMaterial }, new Mesh[] { nodeMesh });
-        RenderMeshUtility.AddComponents(prototypes.nodePrototype, em, rmdNoShadows, renderMeshArray, mmi);
+        RenderMeshUtility.AddComponents(prototypes.nodePrototype, em, new RenderMeshDescription(ShadowCastingMode.Off, false, MotionVectorGenerationMode.Camera, 8), renderMeshArray, mmi);
 
         prototypes.rocket1Prototype = em.CreateEntity();
         Material rocket1Material = Resources.Load<Material>("Art/Misc/RocketsPalletteRed");

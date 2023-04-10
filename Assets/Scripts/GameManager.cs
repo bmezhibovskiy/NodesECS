@@ -8,6 +8,7 @@ using Unity.Mathematics;
 using Unity.Transforms;
 using Unity.Assertions;
 using com.borismez.ShockwavesHDRP;
+using UnityEngine.UI;
 
 public static class Globals
 {
@@ -85,6 +86,8 @@ public class GameManager : MonoBehaviour
     {
 
         GraphicsSettings.useScriptableRenderPipelineBatching = true;
+
+
 
         shipInfos = ShipInfos.FromJsonFile("Ships.json");
 
