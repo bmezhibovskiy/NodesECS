@@ -1,0 +1,50 @@
+{
+    "displayInfos": [
+        {
+            "initialScale": 1.0,
+            "initialRotationDegrees": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "anchor": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "path": "Art/Misc",
+            "meshBundle": null,
+            "parts": [
+                {
+                    "mesh": "Sphere",
+                    "material": "NodeMaterial"
+                }
+            ],
+            "lights": [
+            ]
+        },
+        {
+            "initialScale": 1.0,
+            "initialRotationDegrees": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "anchor": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "path": "Art/Misc",
+            "meshBundle": null,
+            "parts": [
+                {
+                    "mesh": "uncappedCylinder",
+                    "material": "FireThrustMaterial"
+                }
+            ],
+            "lights": [
+            ]
+        }
+    ]
+}

@@ -72,24 +72,6 @@ public class GameManager : MonoBehaviour
     Camera mainCamera;
 
     [SerializeField]
-    Mesh nodeMesh;
-
-    [SerializeField]
-    Material nodeMaterial;
-
-    [SerializeField]
-    Mesh rocketMesh;
-
-    [SerializeField]
-    Material rocketMaterial;
-
-    [SerializeField]
-    Mesh thrustMesh;
-
-    [SerializeField]
-    Material thrustMaterial;
-
-    [SerializeField]
     ExplosionManager explosionManager;
 
     ShipInfos shipInfos;
@@ -128,17 +110,7 @@ public class GameManager : MonoBehaviour
 
     private void SetUpPrototypes()
     {
-        EntityManager em = World.DefaultGameObjectInjectionWorld.EntityManager;
-
-        Dictionary<EntityFactory.EntityType, Mesh> meshes = new Dictionary<EntityFactory.EntityType, Mesh>();
-        meshes[EntityFactory.EntityType.Node] = nodeMesh;
-        meshes[EntityFactory.EntityType.Rocket1] = rocketMesh;
-        meshes[EntityFactory.EntityType.Thrust1] = thrustMesh;
-        Dictionary<EntityFactory.EntityType, Material> materials = new Dictionary<EntityFactory.EntityType, Material>();
-        materials[EntityFactory.EntityType.Node] = nodeMaterial;
-        materials[EntityFactory.EntityType.Rocket1] = rocketMaterial;
-        materials[EntityFactory.EntityType.Thrust1] = thrustMaterial;
-        Globals.sharedEntityFactory.Data.SetUpPrototypes(em, meshes, materials);
+        Globals.sharedEntityFactory.Data.SetUpPrototypes(World.DefaultGameObjectInjectionWorld.EntityManager);
     }
 
     // Update is called once per frame

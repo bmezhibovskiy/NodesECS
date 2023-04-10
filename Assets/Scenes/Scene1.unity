@@ -386,11 +386,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   mainCamera: {fileID: 935464055}
   nodeMesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
-  nodeMaterial: {fileID: -876546973899608171, guid: 2cfb938f37aa6354f8377a23af475906, type: 3}
+  nodeMaterial: {fileID: 0}
   rocketMesh: {fileID: 4300000, guid: dd38f665ad77be340856868cb8cecb1f, type: 3}
   rocketMaterial: {fileID: 2100000, guid: e941d0d6425697b499256f89933a0df2, type: 2}
   thrustMesh: {fileID: 2534964839176971238, guid: 5d7ba39e43c19354b9dfac50303893ff, type: 3}
-  thrustMaterial: {fileID: -876546973899608171, guid: 692cef5c7c254a347ab479de160a9631, type: 3}
+  thrustMaterial: {fileID: 0}
   explosionManager: {fileID: 593074697}
 --- !u!1 &524356878
 GameObject:

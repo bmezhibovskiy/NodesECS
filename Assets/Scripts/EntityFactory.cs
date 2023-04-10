@@ -8,6 +8,7 @@ using Unity.Rendering;
 using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.HighDefinition;
 
 public struct EntityFactory
 {
@@ -24,23 +25,33 @@ public struct EntityFactory
     }
     private Prototypes prototypes;
 
-    public void SetUpPrototypes(EntityManager em, Dictionary<EntityType, Mesh> meshes, Dictionary<EntityType, Material> materials)
+    public void SetUpPrototypes(EntityManager em)
     {
         RenderMeshDescription rmd = new RenderMeshDescription(ShadowCastingMode.Off, false);
         MaterialMeshInfo mmi = MaterialMeshInfo.FromRenderMeshArrayIndices(0, 0);
 
         prototypes.nodePrototype = em.CreateEntity();
-        RenderMeshArray renderMeshArray = new RenderMeshArray(new Material[] { materials[EntityType.Node] }, new Mesh[] { meshes[EntityType.Node] });
+        
+        Material nodeMaterial = Resources.Load<Material>("Art/Misc/NodeMaterial");
+        Mesh nodeMesh = Resources.Load<Mesh>("Art/Misc/Sphere");
+
+        RenderMeshArray renderMeshArray = new RenderMeshArray(new Material[] { nodeMaterial }, new Mesh[] { nodeMesh });
         RenderMeshUtility.AddComponents(prototypes.nodePrototype, em, rmd, renderMeshArray, mmi);
 
 
         prototypes.rocket1Prototype = em.CreateEntity();
-        RenderMeshArray renderMeshArray2 = new RenderMeshArray(new Material[] { materials[EntityType.Rocket1] }, new Mesh[] { meshes[EntityType.Rocket1] });
+
+        Material rocket1Material = Resources.Load<Material>("Art/Misc/RocketsPalletteRed");
+        Mesh rocket1Mesh = Resources.Load<Mesh>("Art/Misc/Rocket01");
+
+        RenderMeshArray renderMeshArray2 = new RenderMeshArray(new Material[] { rocket1Material }, new Mesh[] { rocket1Mesh });
         RenderMeshUtility.AddComponents(prototypes.rocket1Prototype, em, rmd, renderMeshArray2, mmi);
 
 
         prototypes.thrust1Prototype = em.CreateEntity();
-        RenderMeshArray renderMeshArray3 = new RenderMeshArray(new Material[] { materials[EntityType.Thrust1] }, new Mesh[] { meshes[EntityType.Thrust1] });
+        Material thrust1Material = Resources.Load<Material>("Art/Misc/FireThrustMaterial");
+        Mesh thrust1Mesh = Resources.Load<Mesh>("Art/Misc/uncappedCylinder");
+        RenderMeshArray renderMeshArray3 = new RenderMeshArray(new Material[] { thrust1Material }, new Mesh[] { thrust1Mesh });
         RenderMeshUtility.AddComponents(prototypes.thrust1Prototype, em, rmd, renderMeshArray3, mmi);
     }
 
