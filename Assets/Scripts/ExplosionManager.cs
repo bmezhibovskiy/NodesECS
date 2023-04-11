@@ -66,6 +66,7 @@ public class ExplosionManager : MonoBehaviour
         }
 
         GameObject newExplosion = Instantiate(ExplosionPrefab, worldPos, Quaternion.identity);
+        newExplosion.layer = (int)CustomLayer.Effects;
         newExplosion.transform.localScale = Vector3.one * scale;
         return newExplosion;
     }

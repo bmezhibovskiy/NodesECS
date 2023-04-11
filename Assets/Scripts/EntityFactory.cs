@@ -10,6 +10,11 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.HighDefinition;
 
+public enum CustomLayer: int
+{
+    Default = 0, Nodes = 8, WeaponShots = 9, Effects = 10, Minimap = 11, VisibleOnMinimap = 12, Invisible = 13
+}
+
 public struct EntityFactory
 {
     private struct Prototypes
@@ -23,33 +28,31 @@ public struct EntityFactory
 
     public void SetUpPrototypes(EntityManager em)
     {
-        RenderMeshDescription rmdNoShadows = new RenderMeshDescription(ShadowCastingMode.Off, false);
-        RenderMeshDescription rmdShadows = new RenderMeshDescription(ShadowCastingMode.On, true);
         MaterialMeshInfo mmi = MaterialMeshInfo.FromRenderMeshArrayIndices(0, 0);
 
         prototypes.nodePrototype = em.CreateEntity();
         Material nodeMaterial = Resources.Load<Material>("Art/Misc/NodeMaterial");
         Mesh nodeMesh = Resources.Load<Mesh>("Art/Misc/Sphere");
         RenderMeshArray renderMeshArray = new RenderMeshArray(new Material[] { nodeMaterial }, new Mesh[] { nodeMesh });
-        RenderMeshUtility.AddComponents(prototypes.nodePrototype, em, new RenderMeshDescription(ShadowCastingMode.Off, false, MotionVectorGenerationMode.Camera, 8), renderMeshArray, mmi);
+        RenderMeshUtility.AddComponents(prototypes.nodePrototype, em, new RenderMeshDescription(ShadowCastingMode.Off, false, MotionVectorGenerationMode.Camera, (int)CustomLayer.Nodes), renderMeshArray, mmi);
 
         prototypes.rocket1Prototype = em.CreateEntity();
         Material rocket1Material = Resources.Load<Material>("Art/Misc/RocketsPalletteRed");
         Mesh rocket1Mesh = Resources.Load<Mesh>("Art/Misc/Rocket01");
         RenderMeshArray renderMeshArray2 = new RenderMeshArray(new Material[] { rocket1Material }, new Mesh[] { rocket1Mesh });
-        RenderMeshUtility.AddComponents(prototypes.rocket1Prototype, em, rmdShadows, renderMeshArray2, mmi);
+        RenderMeshUtility.AddComponents(prototypes.rocket1Prototype, em, new RenderMeshDescription(ShadowCastingMode.On, true, MotionVectorGenerationMode.Camera, (int)CustomLayer.WeaponShots), renderMeshArray2, mmi);
 
         prototypes.thrust1Prototype = em.CreateEntity();
         Material thrust1Material = Resources.Load<Material>("Art/Misc/FireThrustMaterial");
         Mesh thrust1Mesh = Resources.Load<Mesh>("Art/Misc/uncappedCylinder");
         RenderMeshArray renderMeshArray3 = new RenderMeshArray(new Material[] { thrust1Material }, new Mesh[] { thrust1Mesh });
-        RenderMeshUtility.AddComponents(prototypes.thrust1Prototype, em, rmdNoShadows, renderMeshArray3, mmi);
+        RenderMeshUtility.AddComponents(prototypes.thrust1Prototype, em, new RenderMeshDescription(ShadowCastingMode.Off, false, MotionVectorGenerationMode.Camera, (int)CustomLayer.Effects), renderMeshArray3, mmi);
 
         prototypes.shieldHitPrototype = em.CreateEntity();
         Material shieldHitMaterial = Resources.Load<Material>("Art/Misc/ShieldHitMaterial");
         Mesh shieldHitMesh = Resources.Load<Mesh>("Art/Misc/Sphere");
         RenderMeshArray renderMeshArray4 = new RenderMeshArray(new Material[] { shieldHitMaterial }, new Mesh[] { shieldHitMesh });
-        RenderMeshUtility.AddComponents(prototypes.shieldHitPrototype, em, rmdNoShadows, renderMeshArray4, mmi);
+        RenderMeshUtility.AddComponents(prototypes.shieldHitPrototype, em, new RenderMeshDescription(ShadowCastingMode.Off, false, MotionVectorGenerationMode.Camera, (int)CustomLayer.Effects), renderMeshArray4, mmi);
     }
 
     public Entity CreateRocket1Async(int sortKey, Entity shooter, EntityCommandBuffer.ParallelWriter ecb, float3 pos, float3 facing, double elapsedTime)

@@ -89,7 +89,7 @@ public class PartsRenderInfo
             em.AddComponentData(child, new RelativeTransform { Value = transform });
             em.AddComponentData(child, new DestroyOnLevelUnload());
 
-            RenderMeshDescription rmd = new RenderMeshDescription(ShadowCastingMode.On, true);
+            RenderMeshDescription rmd = new RenderMeshDescription(ShadowCastingMode.On, true, MotionVectorGenerationMode.Camera, (int)CustomLayer.VisibleOnMinimap);
             RenderMeshArray renderMeshArray = new RenderMeshArray(new Material[] { pair.Value.material }, new Mesh[] { pair.Value.mesh });
             RenderMeshUtility.AddComponents(child, em, rmd, renderMeshArray, MaterialMeshInfo.FromRenderMeshArrayIndices(0, 0));
         }

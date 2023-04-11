@@ -73,6 +73,9 @@ public class GameManager : MonoBehaviour
     Camera mainCamera;
 
     [SerializeField]
+    Camera minimapCamera;
+
+    [SerializeField]
     ExplosionManager explosionManager;
 
     [SerializeField]
@@ -89,7 +92,7 @@ public class GameManager : MonoBehaviour
     void OnBeginCameraRendering(ScriptableRenderContext context, Camera camera)
     {
         //TODO: compare against minimap camera instead, in case we ever add other cameras
-        minimapLight.SetActive(camera != mainCamera);
+        minimapLight.SetActive(camera == minimapCamera);
     }
 
     void OnDestroy()

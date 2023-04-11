@@ -14,11 +14,11 @@ TagManager:
   - 
   - Background
   - Nodes
+  - WeaponShots
+  - Effects
   - Minimap
-  - 
-  - 
-  - 
-  - 
+  - VisibleOnMinimap
+  - Invisible
   - 
   - 
   - 
