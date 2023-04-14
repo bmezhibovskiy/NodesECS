@@ -91,7 +91,6 @@ public class GameManager : MonoBehaviour
 
     void OnBeginCameraRendering(ScriptableRenderContext context, Camera camera)
     {
-        //TODO: compare against minimap camera instead, in case we ever add other cameras
         minimapLight.SetActive(camera == minimapCamera);
     }
 
