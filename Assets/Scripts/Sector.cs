@@ -192,8 +192,7 @@ public class Sector : MonoBehaviour
 
     private void AddConnection(Entity a, Entity b)
     {
-        EntityArchetype ea = em.CreateArchetype(typeof(NodeConnection));
-        Entity e = em.CreateEntity(ea);
+        Entity e = em.CreateEntity();
         em.AddComponentData(e, new NodeConnection { a = a, b = b });
         em.AddComponentData(e, new DestroyOnLevelUnload());
     }
@@ -205,8 +204,7 @@ public class Sector : MonoBehaviour
 
     private void AddStation(string name, string type, float3 pos, float size, int factionIndex, StationModuleInfo[] moduleInfos)
     {
-        EntityArchetype ea = em.CreateArchetype(typeof(Station));
-        Entity e = em.CreateEntity(ea);
+        Entity e = em.CreateEntity();
         em.AddComponentData(e, new LocalToWorld { Value = float4x4.Translate(pos) });
         em.AddComponentData(e, new NextTransform { facing = new float3(1, 0, 0), nextPos = pos, scale = 1f });
 
@@ -254,11 +252,7 @@ public class Sector : MonoBehaviour
 
     private Entity AddShip(string name, float3 pos, bool isPlayer)
     {
-        EntityArchetype ea = isPlayer ?
-            em.CreateArchetype(typeof(Player)) :
-            em.CreateArchetype(typeof(Ship));
-
-        Entity e = em.CreateEntity(ea);
+        Entity e = em.CreateEntity();
         em.AddComponentData(e, new LocalToWorld { Value = float4x4.Translate(pos) });
 
         ShipInfo info = shipInfos[name];

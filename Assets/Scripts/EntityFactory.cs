@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using Unity.Burst;
 using Unity.Collections;
 using Unity.Core;
@@ -9,6 +10,7 @@ using Unity.Transforms;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.HighDefinition;
+using UnityEngine.UIElements;
 
 public enum CustomLayer: int
 {
@@ -17,42 +19,61 @@ public enum CustomLayer: int
 
 public struct EntityFactory
 {
-    private struct Prototypes
+    private struct PartDisplayPrototype
     {
-        public Entity nodePrototype;
-        public Entity rocket1Prototype;
-        public Entity thrust1Prototype;
-        public Entity shieldHitPrototype;
+        public Entity partPrototype;
+        public float4x4 initialTransform;
     }
-    private Prototypes prototypes;
+
+    private struct DisplayPrototypes
+    {
+        public NativeArray<PartDisplayPrototype> nodePrototype;
+        public NativeArray<PartDisplayPrototype> rocket1Prototype;
+        public NativeArray<PartDisplayPrototype> thrust1Prototype;
+        public NativeArray<PartDisplayPrototype> shieldHitPrototype;
+    }
+    private DisplayPrototypes prototypes;
 
     public void SetUpPrototypes(EntityManager em)
     {
+        prototypes.nodePrototype = new NativeArray<PartDisplayPrototype>(1, Allocator.Persistent);
+        prototypes.rocket1Prototype = new NativeArray<PartDisplayPrototype>(1, Allocator.Persistent);
+        prototypes.thrust1Prototype = new NativeArray<PartDisplayPrototype>(1, Allocator.Persistent);
+        prototypes.shieldHitPrototype = new NativeArray<PartDisplayPrototype>(1, Allocator.Persistent);
+
         MaterialMeshInfo mmi = MaterialMeshInfo.FromRenderMeshArrayIndices(0, 0);
 
-        prototypes.nodePrototype = em.CreateEntity();
+        Entity nodePrototype = em.CreateEntity();
         Material nodeMaterial = Resources.Load<Material>("Art/Misc/NodeMaterial");
         Mesh nodeMesh = Resources.Load<Mesh>("Art/Misc/Sphere");
         RenderMeshArray renderMeshArray = new RenderMeshArray(new Material[] { nodeMaterial }, new Mesh[] { nodeMesh });
-        RenderMeshUtility.AddComponents(prototypes.nodePrototype, em, new RenderMeshDescription(ShadowCastingMode.Off, false, MotionVectorGenerationMode.Camera, (int)CustomLayer.Nodes), renderMeshArray, mmi);
+        RenderMeshUtility.AddComponents(nodePrototype, em, new RenderMeshDescription(ShadowCastingMode.Off, false, MotionVectorGenerationMode.Camera, (int)CustomLayer.Nodes), renderMeshArray, mmi);
+        float4x4 nodeInitialTransform = float4x4.identity;
+        prototypes.nodePrototype[0] = (new PartDisplayPrototype { partPrototype = nodePrototype, initialTransform = nodeInitialTransform });
 
-        prototypes.rocket1Prototype = em.CreateEntity();
+        Entity rocket1Prototype = em.CreateEntity();
         Material rocket1Material = Resources.Load<Material>("Art/Misc/RocketsPalletteRed");
         Mesh rocket1Mesh = Resources.Load<Mesh>("Art/Misc/Rocket01");
         RenderMeshArray renderMeshArray2 = new RenderMeshArray(new Material[] { rocket1Material }, new Mesh[] { rocket1Mesh });
-        RenderMeshUtility.AddComponents(prototypes.rocket1Prototype, em, new RenderMeshDescription(ShadowCastingMode.On, true, MotionVectorGenerationMode.Camera, (int)CustomLayer.WeaponShots), renderMeshArray2, mmi);
+        RenderMeshUtility.AddComponents(rocket1Prototype, em, new RenderMeshDescription(ShadowCastingMode.On, true, MotionVectorGenerationMode.Camera, (int)CustomLayer.WeaponShots), renderMeshArray2, mmi);
+        float4x4 rocket1InitialTransform = math.mul(float4x4.RotateZ(math.radians(270)), float4x4.Scale(0.1f));
+        prototypes.rocket1Prototype[0] = (new PartDisplayPrototype { partPrototype = rocket1Prototype, initialTransform = rocket1InitialTransform });
 
-        prototypes.thrust1Prototype = em.CreateEntity();
+        Entity thrust1Prototype = em.CreateEntity();
         Material thrust1Material = Resources.Load<Material>("Art/Misc/FireThrustMaterial");
         Mesh thrust1Mesh = Resources.Load<Mesh>("Art/Misc/uncappedCylinder");
         RenderMeshArray renderMeshArray3 = new RenderMeshArray(new Material[] { thrust1Material }, new Mesh[] { thrust1Mesh });
-        RenderMeshUtility.AddComponents(prototypes.thrust1Prototype, em, new RenderMeshDescription(ShadowCastingMode.Off, false, MotionVectorGenerationMode.Camera, (int)CustomLayer.Effects), renderMeshArray3, mmi);
+        RenderMeshUtility.AddComponents(thrust1Prototype, em, new RenderMeshDescription(ShadowCastingMode.Off, false, MotionVectorGenerationMode.Camera, (int)CustomLayer.Effects), renderMeshArray3, mmi);
+        float4x4 thrust1InitialTransform = float4x4.identity;
+        prototypes.thrust1Prototype[0] = (new PartDisplayPrototype { partPrototype = thrust1Prototype, initialTransform = thrust1InitialTransform });
 
-        prototypes.shieldHitPrototype = em.CreateEntity();
+        Entity shieldHitPrototype = em.CreateEntity();
         Material shieldHitMaterial = Resources.Load<Material>("Art/Misc/ShieldHitMaterial");
         Mesh shieldHitMesh = Resources.Load<Mesh>("Art/Misc/Sphere");
         RenderMeshArray renderMeshArray4 = new RenderMeshArray(new Material[] { shieldHitMaterial }, new Mesh[] { shieldHitMesh });
-        RenderMeshUtility.AddComponents(prototypes.shieldHitPrototype, em, new RenderMeshDescription(ShadowCastingMode.Off, false, MotionVectorGenerationMode.Camera, (int)CustomLayer.Effects), renderMeshArray4, mmi);
+        RenderMeshUtility.AddComponents(shieldHitPrototype, em, new RenderMeshDescription(ShadowCastingMode.Off, false, MotionVectorGenerationMode.Camera, (int)CustomLayer.Effects), renderMeshArray4, mmi);
+        float4x4 shieldHitInitialTransform = float4x4.Scale(2.0f);
+        prototypes.shieldHitPrototype[0] = (new PartDisplayPrototype { partPrototype = shieldHitPrototype, initialTransform = shieldHitInitialTransform });
     }
 
     public Entity CreateRocket1Async(int sortKey, Entity shooter, EntityCommandBuffer.ParallelWriter ecb, float3 pos, float3 facing, double elapsedTime)
@@ -70,15 +91,7 @@ public struct EntityFactory
         ecb.AddComponent(sortKey, newRocket, new NeedsDestroy { destroyTime = elapsedTime + 1.0f });
         ecb.AddComponent(sortKey, newRocket, new DestroyOnLevelUnload());
 
-        Entity rocketDisplayChild = ecb.Instantiate(sortKey, prototypes.rocket1Prototype);
-        ecb.AddComponent(sortKey, rocketDisplayChild, new Parent { Value = newRocket });
-        float4x4 scale = float4x4.Scale(0.1f);
-        float4x4 rotation = float4x4.RotateZ(math.radians(270));
-        float4x4 initialTransform = math.mul(rotation, scale);
-        ecb.AddComponent(sortKey, rocketDisplayChild, new LocalToWorld { Value = initialTransform });
-        ecb.AddComponent(sortKey, rocketDisplayChild, new RelativeTransform { Value = initialTransform });
-        ecb.AddComponent(sortKey, rocketDisplayChild, new DestroyOnLevelUnload());
-
+        AddDisplayChildrenAsync(sortKey, ecb, newRocket, prototypes.rocket1Prototype);
         return newRocket;
     }
 
@@ -86,9 +99,7 @@ public struct EntityFactory
     {
         Entity newNode = ecb.CreateEntity(sortKey);
 
-        float4x4 scale = float4x4.Scale(Globals.sharedLevelInfo.Data.nodeSize);
-        float4x4 translate = float4x4.Translate(pos);
-        float4x4 transform = math.mul(translate, scale);
+        float4x4 transform = math.mul(float4x4.Translate(pos), float4x4.Scale(Globals.sharedLevelInfo.Data.nodeSize));
 
         ecb.AddComponent(sortKey, newNode, new LocalToWorld { Value = transform });
         ecb.AddComponent(sortKey, newNode, new GridNode { velocity = float3.zero, isBorder = false });
@@ -98,11 +109,7 @@ public struct EntityFactory
         }
         ecb.AddComponent(sortKey, newNode, new DestroyOnLevelUnload());
 
-        Entity nodeDisplayChild = ecb.Instantiate(sortKey, prototypes.nodePrototype);
-        ecb.AddComponent(sortKey, nodeDisplayChild, new Parent { Value = newNode });
-        ecb.AddComponent(sortKey, nodeDisplayChild, new LocalToWorld { Value = transform });
-        ecb.AddComponent(sortKey, nodeDisplayChild, new RelativeTransform { Value = float4x4.identity });
-        ecb.AddComponent(sortKey, nodeDisplayChild, new DestroyOnLevelUnload());
+        AddDisplayChildrenAsync(sortKey, ecb, newNode, prototypes.nodePrototype);
 
         return newNode;
     }
@@ -111,39 +118,33 @@ public struct EntityFactory
     {
         Entity newNode = em.CreateEntity();
 
-        float4x4 scale = float4x4.Scale(Globals.sharedLevelInfo.Data.nodeSize);
-        float4x4 translate = float4x4.Translate(pos);
-        float4x4 transform = math.mul(translate, scale);
+        float4x4 transform = math.mul(float4x4.Translate(pos), float4x4.Scale(Globals.sharedLevelInfo.Data.nodeSize));
 
         em.AddComponentData(newNode, new LocalToWorld { Value = transform });
         em.AddComponentData(newNode, new GridNode { velocity = float3.zero, isBorder = isBorder });
         em.AddComponentData(newNode, new DestroyOnLevelUnload());
 
-        Entity nodeDisplayChild = em.Instantiate(prototypes.nodePrototype);
-        em.AddComponentData(nodeDisplayChild, new Parent { Value = newNode });
-        em.AddComponentData(nodeDisplayChild, new LocalToWorld { Value = transform });
-        em.AddComponentData(nodeDisplayChild, new RelativeTransform { Value = float4x4.identity });
-        em.AddComponentData(nodeDisplayChild, new DestroyOnLevelUnload());
+        AddDisplayChildrenNow(em, newNode, prototypes.nodePrototype);
 
         return newNode;
     }
 
     public Entity CreateThrust1Async(int sortKey, EntityCommandBuffer.ParallelWriter ecb, Entity parent, ThrustHaver th, int thrusterNumber, float4x4 parentTransform)
     {
-        Entity newThrust = ecb.Instantiate(sortKey, prototypes.thrust1Prototype);
-        ecb.AddComponent(sortKey, newThrust, new Parent { Value = parent });
+        //This is a display-only entity that gets attached to an existing parent
+        //But we need to add additional components to the display child
+        NativeArray<Entity> thrustDisplayEntities = AddDisplayChildrenAsync(sortKey, ecb, parent, prototypes.thrust1Prototype);
+        
+        Debug.Assert(thrustDisplayEntities.Length == 1);
 
-        float4x4 transform = th.Transform(thrusterNumber, 1);
-        ecb.AddComponent(sortKey, newThrust, new LocalToWorld { Value = math.mul(parentTransform, transform) });
-        ecb.AddComponent(sortKey, newThrust, new RelativeTransform { Value = transform });
-
-        ecb.AddComponent(sortKey, newThrust, new DestroyOnLevelUnload());
-
+        Entity newThrust = thrustDisplayEntities[0];
         ecb.AddComponent(sortKey, newThrust, new Thrust { thrusterNumber = thrusterNumber });
         ecb.AddComponent(sortKey, newThrust, new NeedsAssignThrustEntity { parentEntity = parent, thrusterNumber = thrusterNumber });
+
         return newThrust;
     }
-    public Entity CreateAOENow(EntityManager em, float3 pos, float radius, float maxTime)
+
+    public void CreateAOENow(EntityManager em, float3 pos, float radius, float maxTime)
     {
         Entity e = em.CreateEntity();
 
@@ -151,20 +152,53 @@ public struct EntityFactory
         em.AddComponentData(e, new LocalToWorld { Value = float4x4.Translate(pos) });
         em.AddComponentData(e, new NeedsDestroy { destroyTime = maxTime, confirmDestroy = true });
         em.AddComponentData(e, new DestroyOnLevelUnload());
-        return e;
+
+        //This is an invisible entity, so it doesn't need display children.
     }
 
-    public Entity CreateShieldHitAsync(int sortKey, EntityCommandBuffer.ParallelWriter ecb, double maxTime, Entity parent, float4x4 parentTransform)
+    public void CreateShieldHitAsync(int sortKey, EntityCommandBuffer.ParallelWriter ecb, double maxTime, Entity parent, float4x4 parentTransform)
     {
-        Entity newShieldHit = ecb.Instantiate(sortKey, prototypes.shieldHitPrototype);
-        ecb.AddComponent(sortKey, newShieldHit, new Parent { Value = parent });
+        //This is a display-only entity that gets attached to an existing parent
+        AddDisplayChildrenAsync(sortKey, ecb, parent, prototypes.shieldHitPrototype, maxTime);
+    }
 
-        float4x4 transform = float4x4.Scale(2.0f);
-        ecb.AddComponent(sortKey, newShieldHit, new LocalToWorld { Value = math.mul(parentTransform, transform) });
-        ecb.AddComponent(sortKey, newShieldHit, new RelativeTransform { Value = transform });
+    private NativeArray<Entity> AddDisplayChildrenAsync(int sortKey, EntityCommandBuffer.ParallelWriter ecb, Entity parent, NativeArray<PartDisplayPrototype> parts, double destroyTime = 0)
+    {
+        NativeArray<Entity> children = new NativeArray<Entity>(parts.Length, Allocator.Temp);
+        for (int i = 0; i < parts.Length; ++i)
+        {
+            PartDisplayPrototype pdp = parts[i];
+            Entity displayChild = ecb.Instantiate(sortKey, pdp.partPrototype);
+            ecb.AddComponent(sortKey, displayChild, new Parent { Value = parent });
+            ecb.AddComponent(sortKey, displayChild, new LocalToWorld { Value = pdp.initialTransform });
+            ecb.AddComponent(sortKey, displayChild, new RelativeTransform { Value = pdp.initialTransform });
+            ecb.AddComponent(sortKey, displayChild, new DestroyOnLevelUnload());
+            if(destroyTime > 0)
+            {
+                ecb.AddComponent(sortKey, displayChild, new NeedsDestroy { destroyTime = destroyTime, confirmDestroy = true });
+            }
+            children[i] = displayChild;
+        }
+        return children;
+    }
 
-        ecb.AddComponent(sortKey, newShieldHit, new NeedsDestroy { destroyTime = maxTime, confirmDestroy = true });
-        ecb.AddComponent(sortKey, newShieldHit, new DestroyOnLevelUnload());
-        return newShieldHit;
+    private NativeArray<Entity> AddDisplayChildrenNow(EntityManager em, Entity parent, NativeArray<PartDisplayPrototype> parts, double destroyTime = 0)
+    {
+        NativeArray<Entity> children = new NativeArray<Entity>(parts.Length, Allocator.Temp);
+        for (int i = 0; i < parts.Length; ++i)
+        {
+            PartDisplayPrototype pdp = parts[i];
+            Entity displayChild = em.Instantiate(pdp.partPrototype);
+            em.AddComponentData(displayChild, new Parent { Value = parent });
+            em.AddComponentData(displayChild, new LocalToWorld { Value = pdp.initialTransform });
+            em.AddComponentData(displayChild, new RelativeTransform { Value = pdp.initialTransform });
+            em.AddComponentData(displayChild, new DestroyOnLevelUnload());
+            if (destroyTime > 0)
+            {
+                em.AddComponentData(displayChild, new NeedsDestroy { destroyTime = destroyTime, confirmDestroy = true });
+            }
+            children[i] = displayChild;
+        }
+        return children;
     }
 }
