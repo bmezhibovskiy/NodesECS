@@ -2,27 +2,24 @@ using UnityEngine;
 using Unity.Burst;
 using System.Collections.Generic;
 using Unity.Entities;
-using Unity.Rendering;
 using UnityEngine.Rendering;
-using Unity.Mathematics;
-using Unity.Transforms;
-using Unity.Assertions;
-using com.borismez.ShockwavesHDRP;
-using UnityEngine.UI;
 
 public static class Globals
 {
     public readonly static SharedStatic<InputState> sharedInputState = SharedStatic<InputState>.GetOrCreate<InputStateKey>();
     public readonly static SharedStatic<EntityFactory> sharedEntityFactory = SharedStatic<EntityFactory>.GetOrCreate<EntityFactoryKey>();
     public readonly static SharedStatic<LevelInfo> sharedLevelInfo = SharedStatic<LevelInfo>.GetOrCreate<LevelInfoKey>();
+    public readonly static SharedStatic<Unity.Mathematics.Random> sharedRandom = SharedStatic<Unity.Mathematics.Random>.GetOrCreate<RandomGeneratorKey>();
     private class InputStateKey { }
     private class EntityFactoryKey { }
     private class LevelInfoKey { }
+    private class RandomGeneratorKey { }
 
     static Globals()
     {
         sharedInputState.Data.Initialize();
         sharedLevelInfo.Data.Initialize();
+        sharedRandom.Data = new Unity.Mathematics.Random(123);
     }
 }
 
