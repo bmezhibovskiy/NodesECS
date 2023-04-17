@@ -11,10 +11,9 @@ using UnityEngine;
 
 public struct Thrust: IComponentData
 {
-    public readonly static float3 baseScaleVec = new float3(1, 1, 3);
-    public static float4x4 BaseTransform(float scale = 1f)
+    public static float4x4 BaseTransform()
     {
-        return math.mul(float4x4.RotateX(math.radians(270)), math.mul(float4x4.Scale(baseScaleVec * scale), float4x4.Translate(new float3(0, 0, -0.01f))));
+        return math.mul(float4x4.RotateX(math.radians(270)), math.mul(float4x4.Scale(new float3(1, 1, 3)), float4x4.Translate(new float3(0, 0, -0.01f))));
     }
     public int thrusterNumber;
 }
@@ -70,7 +69,7 @@ public struct ThrustHaver : IComponentData
     public float4x4 Transform(int index, float thrustScaleAmount)
     {
         float4x4 thTransform = math.mul(float4x4.Translate(GetPos(index)), float4x4.RotateZ(math.radians(rotation)));
-        return math.mul(thTransform, Thrust.BaseTransform(scale * thrustScaleAmount));
+        return math.mul(thTransform, math.mul(float4x4.Scale(scale * thrustScaleAmount), Thrust.BaseTransform()));
     }
 
     public float3 GetPos(int index)
@@ -132,14 +131,14 @@ public struct NeedsAssignThrustEntity: IComponentData
 public partial struct CreateThrustJob : IJobEntity
 {
     public EntityCommandBuffer.ParallelWriter ecb;
-    void Execute(ref ThrustHaver th, in LocalToWorld ltw, in Entity e, [EntityIndexInQuery] int entityInQueryIndex)
+    void Execute(ref ThrustHaver th, in Entity e, [EntityIndexInQuery] int entityInQueryIndex)
     {
         if (!th.shouldShowThrust) { return; }
         if (th.thrustEntity1 != Entity.Null) { return; }
 
         for (int i = 0; i < th.numThrusters; ++i)
         {
-            Entity newThrust = Globals.sharedEntityFactory.Data.CreateThrust1Async(entityInQueryIndex, ecb, e, th, i, ltw.Value);
+            Entity newThrust = Globals.sharedEntityFactory.Data.CreateThrust1Async(entityInQueryIndex, ecb, e, th, i);
 
             //Will get replaced with the real Entity in another job. This will serve to be different than Entity.Null
             th.Set(i, newThrust);

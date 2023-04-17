@@ -64,7 +64,7 @@ public struct EntityFactory
         Mesh thrust1Mesh = Resources.Load<Mesh>("Art/Misc/uncappedCylinder");
         RenderMeshArray renderMeshArray3 = new RenderMeshArray(new Material[] { thrust1Material }, new Mesh[] { thrust1Mesh });
         RenderMeshUtility.AddComponents(thrust1Prototype, em, new RenderMeshDescription(ShadowCastingMode.Off, false, MotionVectorGenerationMode.Camera, (int)CustomLayer.Effects), renderMeshArray3, mmi);
-        float4x4 thrust1InitialTransform = float4x4.identity;
+        float4x4 thrust1InitialTransform = float4x4.identity;//math.mul(float4x4.RotateX(math.radians(270)), math.mul(float4x4.Scale(new float3(1, 1, 3)), float4x4.Translate(new float3(0, 0, -0.01f))));
         prototypes.thrust1Prototype[0] = (new PartDisplayPrototype { partPrototype = thrust1Prototype, initialTransform = thrust1InitialTransform });
 
         Entity shieldHitPrototype = em.CreateEntity();
@@ -129,7 +129,7 @@ public struct EntityFactory
         return newNode;
     }
 
-    public Entity CreateThrust1Async(int sortKey, EntityCommandBuffer.ParallelWriter ecb, Entity parent, ThrustHaver th, int thrusterNumber, float4x4 parentTransform)
+    public Entity CreateThrust1Async(int sortKey, EntityCommandBuffer.ParallelWriter ecb, Entity parent, ThrustHaver th, int thrusterNumber)
     {
         //This is a display-only entity that gets attached to an existing parent
         //But we need to add additional components to the display child
@@ -170,7 +170,7 @@ public struct EntityFactory
             PartDisplayPrototype pdp = parts[i];
             Entity displayChild = ecb.Instantiate(sortKey, pdp.partPrototype);
             ecb.AddComponent(sortKey, displayChild, new Parent { Value = parent });
-            ecb.AddComponent(sortKey, displayChild, new LocalToWorld { Value = pdp.initialTransform });
+            ecb.AddComponent(sortKey, displayChild, new LocalToWorld { Value = float4x4.zero });
             ecb.AddComponent(sortKey, displayChild, new RelativeTransform { Value = pdp.initialTransform });
             ecb.AddComponent(sortKey, displayChild, new DestroyOnLevelUnload());
             if(destroyTime > 0)
@@ -190,7 +190,7 @@ public struct EntityFactory
             PartDisplayPrototype pdp = parts[i];
             Entity displayChild = em.Instantiate(pdp.partPrototype);
             em.AddComponentData(displayChild, new Parent { Value = parent });
-            em.AddComponentData(displayChild, new LocalToWorld { Value = pdp.initialTransform });
+            em.AddComponentData(displayChild, new LocalToWorld { Value = float4x4.zero });
             em.AddComponentData(displayChild, new RelativeTransform { Value = pdp.initialTransform });
             em.AddComponentData(displayChild, new DestroyOnLevelUnload());
             if (destroyTime > 0)

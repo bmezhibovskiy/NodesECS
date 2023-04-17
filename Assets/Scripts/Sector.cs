@@ -128,11 +128,6 @@ public class Sector : MonoBehaviour
         }
     }
 
-    void OnGUI()
-    {
-        GUI.Label(new Rect(10, 10, 100, 20), displayName);
-    }
-
     private void GenerateNodes(NativeArray<Entity> borderNodes, NativeArray<Entity> nonBorderNodes)
     {
         int numBorderNodes = 0;
