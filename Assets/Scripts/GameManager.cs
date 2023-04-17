@@ -34,6 +34,8 @@ public struct InputState
     public bool LightsKeyPressed;
     public bool PrimaryWeaponKeyDown;
     public bool SecondaryWeaponKeyDown;
+    public bool MinimapClicked;
+    public float ScrollWheelDelta;
 
     public void Initialize()
     {
@@ -46,6 +48,8 @@ public struct InputState
         LightsKeyPressed = false;
         PrimaryWeaponKeyDown = false;
         SecondaryWeaponKeyDown = false;
+        MinimapClicked = false;
+        ScrollWheelDelta = 0;
     }
 }
 
@@ -85,6 +89,8 @@ public class GameManager : MonoBehaviour
 
     GameObject mapObject;
 
+    private float originalFov;
+
 
     void OnBeginCameraRendering(ScriptableRenderContext context, Camera camera)
     {
@@ -102,7 +108,7 @@ public class GameManager : MonoBehaviour
 
         GraphicsSettings.useScriptableRenderPipelineBatching = true;
 
-
+        originalFov = mainCamera.fieldOfView;
 
         shipInfos = ShipInfos.FromJsonFile("Ships.json");
 
@@ -136,7 +142,44 @@ public class GameManager : MonoBehaviour
     {
         UpdateInput();
 
+        UpdateMinimapSize();
+
+        UpdateZoom();
+
+
         UpdateFPSCounter();
+    }
+
+    private void UpdateMinimapSize()
+    {
+        //TODO: Put this somewhere else like Sector
+        if (Globals.sharedInputState.Data.MinimapClicked)
+        {
+            //Cycle through minimap sizes
+            float min = 12;
+            float max = 44;
+            float step = 8;
+            minimapCamera.orthographicSize += step;
+            if (minimapCamera.orthographicSize > max)
+            {
+                minimapCamera.orthographicSize = min;
+            }
+        }
+        //
+    }
+
+    private void UpdateZoom()
+    {
+        float delta = Globals.sharedInputState.Data.ScrollWheelDelta;
+
+        if (delta < 0 && mainCamera.fieldOfView != originalFov)
+        {
+            mainCamera.fieldOfView = originalFov;
+        }
+        else if (delta > 0 && mainCamera.fieldOfView == originalFov)
+        {
+            mainCamera.fieldOfView = originalFov * 0.5f;
+        }
     }
 
     private void UpdateInput()
@@ -150,6 +193,7 @@ public class GameManager : MonoBehaviour
         Globals.sharedInputState.Data.LightsKeyPressed = Input.GetKeyDown(KeyCode.L);
         Globals.sharedInputState.Data.PrimaryWeaponKeyDown = Input.GetKey(KeyCode.Space);
         Globals.sharedInputState.Data.SecondaryWeaponKeyDown = Input.GetKey(KeyCode.X);
+        Globals.sharedInputState.Data.ScrollWheelDelta = Input.mouseScrollDelta.y;
     }
 
 
