@@ -107,7 +107,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _SampleTexture2D_7768a2557d004a47860519e37b450547_Texture_1:
-        m_Texture: {fileID: 8400000, guid: 90fd7a58d3cf1934f9dabf67d9ab1719, type: 2}
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _SpecularColorMap:
