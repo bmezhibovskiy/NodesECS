@@ -31,6 +31,8 @@ Shader "FullScreen/TestFullScreenCustomPass"
     // There are also a lot of utility function you can use inside Common.hlsl and Color.hlsl,
     // you can check them out in the source code of the core SRP package.
 
+    float4 _NormalizedMousePos;
+
     float4 FullScreenPass(Varyings varyings) : SV_Target
     {
         UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(varyings);
@@ -44,7 +46,7 @@ Shader "FullScreen/TestFullScreenCustomPass"
             color = float4(CustomPassLoadCameraColor(varyings.positionCS.xy, 0), 1);
 
         // Add your custom pass code here
-        color = float4(color.r, color.r, color.r, color.a);
+        color = float4(0.5 * (color.r + _NormalizedMousePos.x), 0.5 * (color.g + _NormalizedMousePos.y), color.b, color.a);
 
         // Fade value allow you to increase the strength of the effect while the camera gets closer to the custom pass volume
         float f = 1 - abs(_FadeValue * 2 - 1);
