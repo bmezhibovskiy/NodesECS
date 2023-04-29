@@ -124,7 +124,7 @@ public partial struct UpdateNodeTransformsJob: IJobEntity
         if(gridNode.isBorder) { return; }
 
         float defaultScale = Globals.sharedLevelInfo.Data.nodeSize;
-        float stretchX = math.length(gridNode.velocity) * 30f;
+        float stretchX = math.length(gridNode.velocity) * 14f;
         float4x4 scale = float4x4.Scale(stretchX + defaultScale, defaultScale, defaultScale);
 
         float angle = math.radians(Vector3.SignedAngle(Vector3.right, gridNode.velocity, Vector3.forward));

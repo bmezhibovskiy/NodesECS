@@ -3,7 +3,7 @@
         {
             "name": "Tribal1",
             "displayInfo": {
-                "initialScale": 0.006,
+                "initialScale": 0.01,
                 "initialRotationDegrees": {
                     "x": 326,
                     "y": 0,

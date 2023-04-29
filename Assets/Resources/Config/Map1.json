@@ -17,16 +17,16 @@
 					"name": "Pewter Jewel",
 					"type": "Tribal1",
 					"position": {
-						"x": 4.0,
-						"y": 2.0,
+						"x": 7.0,
+						"y": 3.0,
 						"z": 0.0
 					},
-					"size": 1.8,
+					"size": 2.5,
 					"factionIndex": 0,
 					"moduleInfos": [
 						{
 							"type": "NodePuller",
-							"parameters": [ 2, 0.02, 0.0 ]
+							"parameters": [ 2, 0.06, 0.0 ]
 						},
 						{
 							"type": "NodeEater",
@@ -34,7 +34,7 @@
 						},
 						{
 							"type": "ShipSphereCollider",
-							"parameters": [ 1.8, 0.7 ]
+							"parameters": [ 2.5, 0.7 ]
 						}
 					]
 				},
@@ -42,11 +42,11 @@
 					"name": "Pewter Gem",
 					"type": "Tribal1",
 					"position": {
-						"x": -6.0,
-						"y": -5.0,
+						"x": -9.0,
+						"y": -6.0,
 						"z": 0.0
 					},
-					"size": 1.6,
+					"size": 2.3,
 					"factionIndex": 0,
 					"moduleInfos": [
 						{
@@ -55,7 +55,7 @@
 						},
 						{
 							"type": "ShipSphereCollider",
-							"parameters": [ 1.6, 0.5 ]
+							"parameters": [ 2.3, 0.5 ]
 						}
 					]
 				}
@@ -149,7 +149,7 @@
 						"y": 0.0,
 						"z": 0.0
 					},
-					"size": 1.2,
+					"size": 2.2,
 					"factionIndex": 0,
 					"moduleInfos": [
 						{
