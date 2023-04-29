@@ -29,6 +29,7 @@ public class Map : MonoBehaviour
     private StationTypeInfos stationInfos;
 
     private Camera mainCamera;
+    private Camera targetCamera;
 
     private EntityManager em;
     private EntityQuery allEntitiesQuery;
@@ -37,9 +38,10 @@ public class Map : MonoBehaviour
 
     Dictionary<string, PartsRenderInfo> partsRenderInfos;
 
-    public void Instantiate(Camera mainCamera, Dictionary<string, PartsRenderInfo> partsRenderInfos, ShipInfos shipInfos, StationTypeInfos stationInfos, ExplosionManager explosionManager)
+    public void Instantiate(Camera mainCamera, Camera targetCamera, Dictionary<string, PartsRenderInfo> partsRenderInfos, ShipInfos shipInfos, StationTypeInfos stationInfos, ExplosionManager explosionManager)
     {
         this.mainCamera = mainCamera;
+        this.targetCamera = targetCamera;
         this.partsRenderInfos = partsRenderInfos;
         this.shipInfos = shipInfos;
         this.stationInfos = stationInfos;
@@ -75,7 +77,7 @@ public class Map : MonoBehaviour
         SectorInfo sectorInfo = mapInfo.sectorInfos[currentSectorIndex];
         GameObject newSector = new GameObject("Sector " + currentSectorIndex.ToString());
         Sector sectorComponent = newSector.AddComponent<Sector>();
-        sectorComponent.Initialize(sectorInfo, mainCamera, this, partsRenderInfos, shipInfos, stationInfos, explosionManager);
+        sectorComponent.Initialize(sectorInfo, mainCamera, targetCamera, this, partsRenderInfos, shipInfos, stationInfos, explosionManager);
         currentSector = newSector;
     }
 }

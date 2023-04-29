@@ -77,10 +77,16 @@ public class GameManager : MonoBehaviour
     Camera minimapCamera;
 
     [SerializeField]
+    Camera targetCamera;
+
+    [SerializeField]
     ExplosionManager explosionManager;
 
     [SerializeField]
     GameObject minimapLight;
+
+    [SerializeField]
+    GameObject targetLight;
 
     ShipInfos shipInfos;
     StationTypeInfos stationTypeInfos;
@@ -94,6 +100,7 @@ public class GameManager : MonoBehaviour
 
     void OnBeginCameraRendering(ScriptableRenderContext context, Camera camera)
     {
+        targetLight.SetActive(camera == targetCamera);
         minimapLight.SetActive(camera == minimapCamera);
     }
 
@@ -129,7 +136,7 @@ public class GameManager : MonoBehaviour
         mapObject = new GameObject("Map");
         Map map = mapObject.AddComponent<Map>();
 
-        map.Instantiate(mainCamera, partsRenderInfos, shipInfos, stationTypeInfos, explosionManager);
+        map.Instantiate(mainCamera, targetCamera, partsRenderInfos, shipInfos, stationTypeInfos, explosionManager);
     }
 
     private void SetUpPrototypes()

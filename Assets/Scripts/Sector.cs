@@ -15,6 +15,7 @@ public class Sector : MonoBehaviour
 
     Map parent;
     Camera mainCamera;
+    Camera targetCamera;
     private Dictionary<string, PartsRenderInfo> partsRenderInfos;
     private Dictionary<string, ShipInfo> shipInfos;
     private Dictionary<string, StationTypeInfo> stationTypeInfos;
@@ -42,7 +43,7 @@ public class Sector : MonoBehaviour
     {
     }
 
-    public void Initialize(SectorInfo info, Camera mainCamera, Map parent, Dictionary<string, PartsRenderInfo> partsRenderInfos, ShipInfos shipInfos, StationTypeInfos stationInfos, ExplosionManager explosionManager)
+    public void Initialize(SectorInfo info, Camera mainCamera, Camera targetCamera, Map parent, Dictionary<string, PartsRenderInfo> partsRenderInfos, ShipInfos shipInfos, StationTypeInfos stationInfos, ExplosionManager explosionManager)
     {
         this.displayName = info.name;
         this.sideLength = info.sideLength;
@@ -51,6 +52,7 @@ public class Sector : MonoBehaviour
 
         this.parent = parent;
         this.mainCamera = mainCamera;
+        this.targetCamera = targetCamera;
         this.partsRenderInfos = partsRenderInfos;
         this.shipInfos = shipInfos.ToDictionary();
         this.stationTypeInfos = stationInfos.ToDictionary();
@@ -89,6 +91,7 @@ public class Sector : MonoBehaviour
         float3 shipPos = em.GetComponentData<LocalToWorld>(playerEntity).Position;
         float camPosScale = 0.96f;
         mainCamera.transform.position = new Vector3(shipPos.x * camPosScale, shipPos.y * camPosScale, mainCamera.transform.position.z);
+        targetCamera.transform.position = new Vector3(shipPos.x, shipPos.y, targetCamera.transform.position.z);
 
         Ship ship = em.GetComponentData<Ship>(playerEntity);
         if(ship.ShouldJumpNow())
