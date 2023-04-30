@@ -134,7 +134,7 @@ GameObject:
   - component: {fileID: 118872654}
   - component: {fileID: 118872656}
   - component: {fileID: 118872655}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Minimap Light
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -334,7 +334,7 @@ Light:
   m_AreaSize: {x: 0.5, y: 0.5}
   m_BounceIntensity: 1
   m_ColorTemperature: 6570
-  m_UseColorTemperature: 1
+  m_UseColorTemperature: 0
   m_BoundingSphereOverride: {x: 0, y: 0, z: 0, w: 60}
   m_UseBoundingSphereOverride: 1
   m_UseViewFrustumForShadowCasterCull: 1
@@ -682,7 +682,7 @@ Camera:
   field of view: 20
   orthographic: 1
   orthographic size: 5
-  m_Depth: 5
+  m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
     m_Bits: 4096
@@ -847,7 +847,7 @@ GameObject:
   - component: {fileID: 363872204}
   - component: {fileID: 363872206}
   - component: {fileID: 363872205}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Target Light
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -1002,10 +1002,10 @@ Light:
   serializedVersion: 10
   m_Type: 0
   m_Shape: 0
-  m_Color: {r: 0, g: 1, b: 0.30268955, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_Intensity: 4000
   m_Range: 60
-  m_SpotAngle: 90
+  m_SpotAngle: 45
   m_InnerSpotAngle: 4
   m_CookieSize: 10
   m_Shadows:
@@ -1017,12 +1017,12 @@ Light:
     m_NormalBias: 0.4
     m_NearPlane: 0.2
     m_CullingMatrixOverride:
-      e00: 0.5555556
+      e00: 1.3412297
       e01: 0
       e02: 0
       e03: 0
       e10: 0
-      e11: 1
+      e11: 2.4142134
       e12: 0
       e13: 0
       e20: 0

@@ -100,8 +100,8 @@ public class GameManager : MonoBehaviour
 
     void OnBeginCameraRendering(ScriptableRenderContext context, Camera camera)
     {
-        targetLight.SetActive(camera == targetCamera);
-        minimapLight.SetActive(camera == minimapCamera);
+        targetLight.GetComponent<Light>().enabled = camera == targetCamera;
+        minimapLight.GetComponent<Light>().enabled = camera == minimapCamera;
     }
 
     void OnDestroy()
