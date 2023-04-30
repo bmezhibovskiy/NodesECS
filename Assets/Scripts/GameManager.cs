@@ -185,7 +185,16 @@ public class GameManager : MonoBehaviour
         }
         else if (delta > 0 && mainCamera.fieldOfView == originalFov)
         {
-            mainCamera.fieldOfView = originalFov * 0.5f;
+            mainCamera.fieldOfView = originalFov * 0.4f;
+        }
+        for(int i = 0; i < mainCamera.transform.childCount; ++i)
+        {
+            GameObject child = mainCamera.transform.GetChild(i).gameObject;
+            Camera childCamera = child.GetComponent<Camera>();
+            if(childCamera != null && !childCamera.orthographic)
+            {
+                childCamera.fieldOfView = mainCamera.fieldOfView;
+            }
         }
     }
 

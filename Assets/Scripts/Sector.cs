@@ -34,6 +34,7 @@ public class Sector : MonoBehaviour
 
     private EntityManager em;
     private Entity playerEntity;
+    private List<Entity> npcs = new List<Entity>();
 
     private bool isPlayerJumping = false;
 
@@ -77,7 +78,7 @@ public class Sector : MonoBehaviour
             AddStation(si.name, si.type, si.position, si.size, si.factionIndex, si.moduleInfos);
         }
         this.playerEntity = AddShip("Scaphe", this.startPos, true);
-        AddShip("Zov", new float3(-4,1,0), false);
+        npcs.Add(AddShip("Zov", new float3(-4,1,0), false));
 
         needExplosionEntityQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<NeedsDestroy>().Build(em);
     }
@@ -89,9 +90,13 @@ public class Sector : MonoBehaviour
         if (isPlayerJumping) { return; }
 
         float3 shipPos = em.GetComponentData<LocalToWorld>(playerEntity).Position;
-        float camPosScale = 0.96f;
+        float camPosScale = 0.98f;
         mainCamera.transform.position = new Vector3(shipPos.x * camPosScale, shipPos.y * camPosScale, mainCamera.transform.position.z);
-        targetCamera.transform.position = new Vector3(shipPos.x, shipPos.y, targetCamera.transform.position.z);
+
+        LocalToWorld targetTransform = em.GetComponentData<LocalToWorld>(npcs[0]);
+        float3 targetPos = targetTransform.Position;
+        targetCamera.transform.position = new Vector3(targetPos.x, targetPos.y, targetCamera.transform.position.z);
+        targetCamera.transform.rotation = targetTransform.Rotation;
 
         Ship ship = em.GetComponentData<Ship>(playerEntity);
         if(ship.ShouldJumpNow())
