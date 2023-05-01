@@ -35,6 +35,7 @@ public class Sector : MonoBehaviour
     private EntityManager em;
     private Entity playerEntity;
     private List<Entity> npcs = new List<Entity>();
+    private int targetNPCIndex = -1;
 
     private bool isPlayerJumping = false;
 
@@ -79,6 +80,7 @@ public class Sector : MonoBehaviour
         }
         this.playerEntity = AddShip("Scaphe", this.startPos, true);
         npcs.Add(AddShip("Zov", new float3(-4,1,0), false));
+        npcs.Add(AddShip("Scaphe", new float3(4, 1, 0), false));
 
         needExplosionEntityQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<NeedsDestroy>().Build(em);
     }
@@ -93,10 +95,7 @@ public class Sector : MonoBehaviour
         float camPosScale = 0.98f;
         mainCamera.transform.position = new Vector3(shipPos.x * camPosScale, shipPos.y * camPosScale, mainCamera.transform.position.z);
 
-        LocalToWorld targetTransform = em.GetComponentData<LocalToWorld>(npcs[0]);
-        float3 targetPos = targetTransform.Position;
-        targetCamera.transform.position = new Vector3(targetPos.x, targetPos.y, targetCamera.transform.position.z);
-        targetCamera.transform.rotation = targetTransform.Rotation;
+        UpdateTarget();
 
         Ship ship = em.GetComponentData<Ship>(playerEntity);
         if(ship.ShouldJumpNow())
@@ -134,6 +133,32 @@ public class Sector : MonoBehaviour
                 Destroy(light);
             }
         }
+    }
+
+    private void UpdateTarget()
+    {
+        if(Globals.sharedInputState.Data.NextTargetKeyPressed)
+        {
+            ++targetNPCIndex;
+            if(targetNPCIndex >= npcs.Count)
+            {
+                targetNPCIndex = -1;
+            }
+        }
+
+        if(targetNPCIndex < 0)
+        {
+            targetCamera.transform.forward = -Vector3.forward;
+            ManagedGlobals.hudUIElements.targetText.text = "[ NO TARGET ]";
+            return;
+        }
+        targetCamera.transform.forward = Vector3.forward;
+        ManagedGlobals.hudUIElements.targetText.text = $"[ TARGET {targetNPCIndex + 1} ]";
+
+        LocalToWorld targetTransform = em.GetComponentData<LocalToWorld>(npcs[targetNPCIndex]);
+        float3 targetPos = targetTransform.Position;
+        targetCamera.transform.position = new Vector3(targetPos.x, targetPos.y, targetCamera.transform.position.z);
+        targetCamera.transform.rotation = targetTransform.Rotation;
     }
 
     private void GenerateNodes(NativeArray<Entity> borderNodes, NativeArray<Entity> nonBorderNodes)

@@ -836,6 +836,7 @@ MonoBehaviour:
   explosionManager: {fileID: 593074697}
   minimapLight: {fileID: 118872653}
   targetLight: {fileID: 363872203}
+  targetText: {fileID: 1892091343}
 --- !u!1 &363872203
 GameObject:
   m_ObjectHideFlags: 0

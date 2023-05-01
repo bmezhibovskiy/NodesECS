@@ -3,6 +3,7 @@ using Unity.Burst;
 using System.Collections.Generic;
 using Unity.Entities;
 using UnityEngine.Rendering;
+using TMPro;
 
 public static class Globals
 {
@@ -36,6 +37,7 @@ public struct InputState
     public bool SecondaryWeaponKeyDown;
     public bool MinimapClicked;
     public float ScrollWheelDelta;
+    public bool NextTargetKeyPressed;
 
     public void Initialize()
     {
@@ -68,6 +70,16 @@ public struct LevelInfo
     }
 }
 
+public static class ManagedGlobals
+{
+    public static HUDUIElements hudUIElements = new HUDUIElements();
+}
+
+public class HUDUIElements
+{
+    public TMP_Text targetText;
+}
+
 public class GameManager : MonoBehaviour
 {
     [SerializeField]
@@ -87,6 +99,9 @@ public class GameManager : MonoBehaviour
 
     [SerializeField]
     GameObject targetLight;
+
+    [SerializeField]
+    TMP_Text targetText;
 
     ShipInfos shipInfos;
     StationTypeInfos stationTypeInfos;
@@ -133,6 +148,8 @@ public class GameManager : MonoBehaviour
 
         SetUpPrototypes();
 
+        SetUpUIVariables();
+
         mapObject = new GameObject("Map");
         Map map = mapObject.AddComponent<Map>();
 
@@ -142,6 +159,11 @@ public class GameManager : MonoBehaviour
     private void SetUpPrototypes()
     {
         Globals.sharedEntityFactory.Data.SetUpPrototypes(World.DefaultGameObjectInjectionWorld.EntityManager);
+    }
+
+    private void SetUpUIVariables()
+    {
+        ManagedGlobals.hudUIElements.targetText = targetText;
     }
 
     // Update is called once per frame
@@ -210,6 +232,7 @@ public class GameManager : MonoBehaviour
         Globals.sharedInputState.Data.PrimaryWeaponKeyDown = Input.GetKey(KeyCode.Space);
         Globals.sharedInputState.Data.SecondaryWeaponKeyDown = Input.GetKey(KeyCode.X);
         Globals.sharedInputState.Data.ScrollWheelDelta = Input.mouseScrollDelta.y;
+        Globals.sharedInputState.Data.NextTargetKeyPressed = Input.GetKeyDown(KeyCode.T);
     }
 
 
