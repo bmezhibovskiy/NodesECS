@@ -80,7 +80,7 @@ public class Sector : MonoBehaviour
         }
         this.playerEntity = AddShip("Scaphe", this.startPos, true);
         npcs.Add(AddShip("Zov", new float3(-4,1,0), false));
-        npcs.Add(AddShip("Scaphe", new float3(4, 1, 0), false));
+        npcs.Add(AddShip("Infestor", new float3(4, 1, 0), false));
 
         needExplosionEntityQuery = new EntityQueryBuilder(Allocator.Temp).WithAll<NeedsDestroy>().Build(em);
     }
@@ -152,13 +152,23 @@ public class Sector : MonoBehaviour
             ManagedGlobals.hudUIElements.targetText.text = "[ NO TARGET ]";
             return;
         }
-        targetCamera.transform.forward = Vector3.forward;
+
         ManagedGlobals.hudUIElements.targetText.text = $"[ TARGET {targetNPCIndex + 1} ]";
 
         LocalToWorld targetTransform = em.GetComponentData<LocalToWorld>(npcs[targetNPCIndex]);
-        float3 targetPos = targetTransform.Position;
-        targetCamera.transform.position = new Vector3(targetPos.x, targetPos.y, targetCamera.transform.position.z);
-        targetCamera.transform.rotation = targetTransform.Rotation;
+        Vector3 targetPos = targetTransform.Position;
+        Vector3 lookDir = new Vector3(0, 1, 1);
+        float dist = 10;
+        Vector3 newCamPos = targetPos - lookDir * dist;
+
+        targetCamera.transform.position = Vector3.zero;
+        targetCamera.transform.forward = lookDir;
+
+        Quaternion targetRotation = targetTransform.Rotation;
+        targetCamera.transform.Rotate(lookDir, targetRotation.eulerAngles.z);
+
+
+        targetCamera.transform.position = newCamPos;
     }
 
     private void GenerateNodes(NativeArray<Entity> borderNodes, NativeArray<Entity> nonBorderNodes)

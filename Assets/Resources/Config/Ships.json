@@ -118,6 +118,40 @@
 
                 ]
             }
+        },
+        {
+            "name": "Infestor",
+            "maxThrust": 2.0,
+            "jerk": 400.0,
+            "rotationSpeed": 4.0,
+            "displayInfo": {
+                "initialScale": 0.4,
+                "initialRotationDegrees": {
+                    "x": 90,
+                    "y": 0,
+                    "z": 180
+                },
+                "anchor": {
+                    "x": -0.18,
+                    "y": 0,
+                    "z": 0
+                },
+                "path": "Art/Ships/InfestationLarge",
+                "meshBundle": "InfestationLarge_Ship",
+                "parts": [
+                    {
+                        "mesh": "Infestor",
+                        "material": "Infestor"
+                    },
+                    {
+                        "mesh": "Spikes",
+                        "material": "Spikes"
+                    }
+                ],
+                "lights": [
+
+                ]
+            }
         }
     ]
 }

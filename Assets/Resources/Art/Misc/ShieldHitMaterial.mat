@@ -110,6 +110,10 @@ Material:
         m_Texture: {fileID: 2800000, guid: 928c88f256826624ead3e2f3f072c160, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _SampleTexture2D_ec3e217d78f147419ea8dd6b3339c732_Texture_1_Texture2D:
+        m_Texture: {fileID: 2800000, guid: 928c88f256826624ead3e2f3f072c160, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _SpecularColorMap:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
